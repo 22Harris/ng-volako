@@ -1,0 +1,324 @@
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme((
+    color: (
+      theme-type: light,
+      primary: mat.$azure-palette,
+      tertiary: mat.$rose-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+/* ==================== VARIABLES ==================== */
+:root {
+  --clr-primary:       #1565c0;
+  --clr-primary-dark:  #0d47a1;
+  --clr-primary-light: #e3f2fd;
+  --clr-accent:        #00897b;
+  --clr-accent-light:  #e0f2f1;
+  --clr-gold:          #f9a825;
+  --clr-gold-light:    #fff8e1;
+  --clr-positive:      #2e7d32;
+  --clr-positive-bg:   #e8f5e9;
+  --clr-negative:      #c62828;
+  --clr-negative-bg:   #ffebee;
+  --clr-warn:          #e65100;
+  --clr-warn-bg:       #fff3e0;
+  --clr-sidebar-bg:    #0d1b2a;
+  --clr-sidebar-hover: #162032;
+  --clr-sidebar-active:#1565c0;
+  --clr-page-bg:       #f0f4f8;
+  --clr-card-bg:       #ffffff;
+  --clr-text-primary:  #0d1b2a;
+  --clr-text-secondary:#546e7a;
+  --clr-border:        #e0e7ef;
+  --shadow-card:       0 2px 8px rgba(13,27,42,.08);
+  --shadow-card-hover: 0 6px 20px rgba(13,27,42,.14);
+  --radius-card:       12px;
+  --radius-pill:       24px;
+  --sidebar-width:     240px;
+  --navbar-height:     64px;
+}
+
+/* ==================== RESET ==================== */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica Neue', sans-serif;
+  background: var(--clr-page-bg);
+  color: var(--clr-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==================== TYPOGRAPHY ==================== */
+h1, h2, h3 { margin: 0; font-weight: 700; color: var(--clr-text-primary); }
+h1 { font-size: 24px; letter-spacing: -.3px; }
+h2 { font-size: 18px; }
+h3 { font-size: 15px; }
+
+/* ==================== LINKS ==================== */
+a { color: var(--clr-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ==================== UTILITY ==================== */
+.full-width { width: 100%; }
+.mt-4 { margin-top: 16px; }
+.mb-4 { margin-bottom: 16px; }
+
+/* ==================== BADGE ==================== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  .mat-icon { font-size: 13px; width: 13px; height: 13px; line-height: 13px; }
+}
+
+.badge-red    { background: #fde8e8; color: #c62828; }
+.badge-green  { background: #e6f4ea; color: #1e6b2e; }
+.badge-orange { background: #fff0e0; color: #c25900; }
+.badge-blue   { background: #e3f0fb; color: #1255a0; }
+.badge-purple { background: #f0e6fb; color: #6a1b9a; }
+.badge-pink   { background: #fce4ec; color: #880e4f; }
+.badge-teal   { background: #e0f7f4; color: #004d40; }
+.badge-indigo { background: #e8eaf6; color: #283593; }
+.badge-gray   { background: #f0f0f0; color: #37474f; }
+.badge-cyan   { background: #e0f7fa; color: #006064; }
+.badge-yellow { background: #fffde7; color: #827717; }
+
+/* ==================== BALANCE ==================== */
+.balance-ok    { color: var(--clr-positive); font-weight: 700; }
+.balance-error { color: var(--clr-negative); font-weight: 700; }
+
+/* ==================== CARDS ==================== */
+mat-card.v-card {
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-card) !important;
+  border: 1px solid var(--clr-border);
+  overflow: hidden;
+  transition: box-shadow .2s ease;
+  &:hover { box-shadow: var(--shadow-card-hover) !important; }
+}
+
+/* ==================== TABLES ==================== */
+.mat-mdc-row:hover { background: #f5f9ff; cursor: pointer; }
+.mat-mdc-header-row {
+  background: #f8fafd;
+  border-bottom: 2px solid var(--clr-border);
+}
+.mat-mdc-header-cell {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--clr-text-secondary);
+}
+.num { text-align: right !important; }
+
+/* ==================== PAGE LAYOUT ==================== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--clr-border);
+
+  .page-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    h1 { font-size: 22px; }
+    .page-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: var(--clr-primary-light);
+      display: flex; align-items: center; justify-content: center;
+      mat-icon { color: var(--clr-primary); }
+    }
+  }
+}
+
+/* ==================== EMPTY STATE ==================== */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--clr-text-secondary);
+  mat-icon { font-size: 48px; width: 48px; height: 48px; opacity: .25; display: block; margin: 0 auto 12px; }
+  p { margin: 0; font-size: 15px; }
+}
+
+/* ==================== ANIMATIONS ==================== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp .35s ease-out; }
+
+/* ==================== SCROLLBAR ==================== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c5cdd6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #90a4ae; }
+
+/* ==================== DATEPICKER VOLAKO ==================== */
+
+@keyframes dp-appear {
+  from { opacity: 0; transform: scale(.94) translateY(-6px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+
+.volako-datepicker {
+
+  /* ── Panel ── */
+  .mat-datepicker-content {
+    border-radius: 20px !important;
+    box-shadow:
+      0 24px 64px rgba(13,27,42,.22),
+      0 4px 16px rgba(13,27,42,.08) !important;
+    overflow: hidden !important;
+    border: none !important;
+    animation: dp-appear .2s cubic-bezier(.22,.68,0,1.15);
+  }
+
+  /* ── Calendar size ── */
+  .mat-calendar {
+    width: 300px !important;
+    font-family: 'Roboto', sans-serif !important;
+  }
+
+  /* ── Header ── */
+  .mat-calendar-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%) !important;
+    padding: 14px 12px 12px !important;
+  }
+
+  /* Period button — "MAR 2026" */
+  .mat-calendar-period-button {
+    color: white !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    letter-spacing: .4px !important;
+    border-radius: 10px !important;
+    padding: 4px 10px !important;
+    height: auto !important;
+    line-height: 1.5 !important;
+    &:hover { background: rgba(255,255,255,.18) !important; }
+    /* Arrow indicator */
+    .mat-calendar-arrow { fill: rgba(255,255,255,.8) !important; }
+  }
+
+  /* Nav arrows — < > */
+  .mat-calendar-previous-button,
+  .mat-calendar-next-button {
+    color: white !important;
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    &:hover { background: rgba(255,255,255,.18) !important; }
+    &::after { color: white !important; border-color: white !important; }
+    /* MDC icon inside button */
+    .mat-icon, svg { color: white !important; fill: white !important; }
+  }
+
+  /* ── Day-name row ── */
+  .mat-calendar-table-header {
+    th {
+      color: #475569 !important;
+      font-size: 11px !important;
+      font-weight: 800 !important;
+      letter-spacing: .6px !important;
+      padding-top: 12px !important;
+      padding-bottom: 6px !important;
+      text-transform: uppercase !important;
+    }
+  }
+  .mat-calendar-table-header-divider { display: none !important; }
+  .mat-calendar-body-label {
+    color: #94a3b8 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+
+  /* ── Date cells ── */
+  .mat-calendar-body-cell-content {
+    border-radius: 50% !important;
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: background .12s, color .12s, box-shadow .12s !important;
+  }
+
+  /* Hover (non-selected) */
+  .mat-calendar-body-cell:not(.mat-calendar-body-disabled):hover
+    .mat-calendar-body-cell-content:not(.mat-calendar-body-selected):not(.mat-calendar-body-today) {
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
+  }
+
+  /* Today */
+  .mat-calendar-body-today:not(.mat-calendar-body-selected) {
+    border: 2px solid #1565c0 !important;
+    color: #1565c0 !important;
+    font-weight: 800 !important;
+    background: #f0f7ff !important;
+  }
+
+  /* Selected */
+  .mat-calendar-body-selected {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%) !important;
+    color: white !important;
+    font-weight: 800 !important;
+    box-shadow: 0 4px 14px rgba(21,101,192,.5) !important;
+    border: none !important;
+  }
+
+  /* Disabled */
+  .mat-calendar-body-disabled .mat-calendar-body-cell-content {
+    color: #cbd5e1 !important;
+  }
+
+  /* Year / month multi-view */
+  .mat-calendar-body-cell:not(.mat-calendar-body-disabled):hover
+    .mat-calendar-body-cell-content:not(.mat-calendar-body-selected) {
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
+  }
+}
+
+/* ==================== DIALOG VOLAKO ==================== */
+.dlg-panel .mat-mdc-dialog-container {
+  padding: 0 !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: 0 24px 60px rgba(13,27,42,.22) !important;
+}
+.dlg-panel .mdc-dialog__surface {
+  border-radius: 20px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ==================== DIALOG VOLAKO ==================== */
+.volako-dialog .mat-mdc-dialog-container {
+  padding: 0 !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: 0 24px 60px rgba(13,27,42,.22) !important;
+}
+.volako-dialog .mdc-dialog__surface {
+  border-radius: 20px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
