@@ -475,10 +475,13 @@ interface SearchResult {
     /* ── Content ── */
     .content {
       flex: 1;
+      min-height: 0;
       background: #f0f4f8;
       overflow-y: auto;
       padding: 32px;
       min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     @media (max-width: 768px) {

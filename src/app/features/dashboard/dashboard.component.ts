@@ -8,6 +8,7 @@ import { AccountService } from '../../core/services/account.service';
 import { OperationService } from '../../core/services/operation.service';
 import { AccountFormComponent } from '../accounts/account-form/account-form.component';
 import { OperationFormComponent } from '../operations/operation-form/operation-form.component';
+import { OperationViewDialogComponent } from '../operations/operation-view-dialog/operation-view-dialog.component';
 import { Account } from '../../core/models/account.model';
 import { Operation } from '../../core/models/operation.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
@@ -146,7 +147,7 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
           } @else {
             <div class="op-list">
               @for (op of lastOperations(); track op.id) {
-                <a class="op-row" [routerLink]="['/operations', op.id]">
+                <div class="op-row" (click)="openOperationDetail(op.id)">
                   <div class="op-dot" [ngClass]="getColorClass(op.type)"></div>
                   <div class="op-info">
                     <span class="op-label">{{ op.label }}</span>
@@ -155,7 +156,7 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
                     </span>
                   </div>
                   <span class="op-date">{{ op.date | date:'dd/MM/yy' }}</span>
-                </a>
+                </div>
               }
             </div>
           }
@@ -333,7 +334,7 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
 
     /* ── Opérations ── */
     .op-list { display:flex; flex-direction:column; gap:4px; }
-    .op-row  { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; text-decoration:none; color:inherit; transition:background .12s; &:hover{background:#f5f7fa} }
+    .op-row  { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:inherit; cursor:pointer; transition:background .12s; &:hover{background:#f5f7fa} }
     .op-dot  { width:8px; height:8px; border-radius:50%; background:#b0bec5; flex-shrink:0; }
     .op-info { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
     .op-label{ font-size:13px; font-weight:500; color:#0d1b2a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -455,6 +456,13 @@ export class DashboardComponent implements OnInit {
         balance,
         pct: Math.round(Math.abs(balance) / max * 100),
       };
+    });
+  }
+
+  openOperationDetail(operationId: number): void {
+    this.dialog.open(OperationViewDialogComponent, {
+      data: { operationId },
+      panelClass: 'dlg-panel',
     });
   }
 

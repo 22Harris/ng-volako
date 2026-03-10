@@ -10,6 +10,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
+      // Auth routes manage their own errors (inline + toast) — never intercept them here
+      if (req.url.includes('/auth/')) {
+        return throwError(() => err);
+      }
       if (err.status === 401) {
         auth.logout();
         return EMPTY;

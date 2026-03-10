@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -11,6 +12,7 @@ import { AppDateInputComponent } from '../../../shared/components/date-input/dat
 import { OperationService } from '../../../core/services/operation.service';
 import { Operation, OperationType } from '../../../core/models/operation.model';
 import { OperationFormComponent } from '../operation-form/operation-form.component';
+import { OperationViewDialogComponent } from '../operation-view-dialog/operation-view-dialog.component';
 import { OperationTypePipe } from '../../../shared/pipes/operation-type.pipe';
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
 import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, OperationCategory, OperationTypeConfig } from '../../../core/utils/operation-type.utils';
@@ -201,8 +203,8 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
                 {{ selectedOp()!.type | operationType }}
               </span>
               <div class="dp-actions">
-                <button class="dp-btn" (click)="openForm(selectedOp()!)" matTooltip="Modifier">
-                  <mat-icon>edit</mat-icon>
+                <button class="dp-btn" (click)="openViewDialog(selectedOp()!)" matTooltip="Voir en plein écran">
+                  <mat-icon>open_in_new</mat-icon>
                 </button>
                 <button class="dp-close" (click)="selectedOp.set(null)" matTooltip="Fermer">
                   <mat-icon>close</mat-icon>
@@ -212,14 +214,20 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
 
             <div class="dp-title-block">
               <h2 class="dp-title">{{ selectedOp()!.label }}</h2>
-              <span class="dp-date">
-                <mat-icon>calendar_today</mat-icon>
-                {{ selectedOp()!.date | date:'dd/MM/yyyy' }}
-              </span>
+              <div class="dp-meta">
+                <span class="dp-date">
+                  <mat-icon>calendar_today</mat-icon>
+                  {{ selectedOp()!.date | date:'dd/MM/yyyy' }}
+                </span>
+                <span class="dp-amount">
+                  <mat-icon>payments</mat-icon>
+                  {{ selectedOp()!.amount | cents }}
+                </span>
+              </div>
             </div>
 
             <div class="dp-entries">
-              @if (selectedOp()!.entries.length) {
+              @if (selectedOp()!.entries?.length) {
                 @for (entry of selectedOp()!.entries; track entry.id; let ei = $index) {
                   <div class="dp-entry">
                     <div class="dp-entry-head">
@@ -287,7 +295,8 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
     </div>
   `,
   styles: [`
-    .page { display: flex; flex-direction: column; height: calc(100vh - 64px); gap: 16px; }
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .page { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 16px; }
 
     /* ── Header ── */
     .page-header {
@@ -518,8 +527,13 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
       padding: 12px 16px 14px; border-bottom: 1px solid #f0f4f8; flex-shrink: 0;
     }
     .dp-title { font-size: 15px; font-weight: 800; color: #0d1b2a; margin: 0 0 6px; line-height: 1.3; }
+    .dp-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .dp-date {
       display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #78909c;
+      mat-icon { font-size: 13px; width: 13px; height: 13px; }
+    }
+    .dp-amount {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 700; color: #1565c0;
       mat-icon { font-size: 13px; width: 13px; height: 13px; }
     }
 
@@ -621,8 +635,10 @@ export class OperationListComponent implements OnInit {
     dateTo:   [''],
   });
 
+  filterValues = toSignal(this.filterForm.valueChanges, { initialValue: this.filterForm.value });
+
   hasActiveFilters = computed(() => {
-    const f = this.filterForm.value;
+    const f = this.filterValues();
     return !!(f.label || f.category || f.type || f.dateFrom || f.dateTo);
   });
 
@@ -651,7 +667,18 @@ export class OperationListComponent implements OnInit {
   }
 
   selectOp(op: Operation): void {
-    this.selectedOp.set(this.selectedOp()?.id === op.id ? null : op);
+    if (this.selectedOp()?.id === op.id) {
+      this.selectedOp.set(null);
+    } else {
+      this.opService.getById(op.id).subscribe(full => this.selectedOp.set(full));
+    }
+  }
+
+  openViewDialog(op: Operation): void {
+    this.dialog.open(OperationViewDialogComponent, {
+      data: { operationId: op.id },
+      panelClass: 'dlg-panel',
+    });
   }
 
   applyFilters(): void {

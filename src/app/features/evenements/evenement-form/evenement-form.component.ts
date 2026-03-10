@@ -22,8 +22,8 @@ import { Evenement, EvenementCategorie, EvenementRecurrence, EvenementStatut } f
           <mat-icon>{{ data.evenement ? 'edit_calendar' : 'event_available' }}</mat-icon>
         </div>
         <div class="dlg-titles">
-          <div class="dlg-title">{{ data.evenement ? 'Modifier l\'événement' : 'Nouvel événement' }}</div>
-          <div class="dlg-sub">{{ data.evenement ? data.evenement.titre : 'Renseigner les informations' }}</div>
+          <div class="dlg-title">{{ data.evenement ? "Modifier l'événement" : "Nouvel événement" }}</div>
+          <div class="dlg-sub">{{ data.evenement ? data.evenement.titre : "Renseigner les informations" }}</div>
         </div>
         <button class="dlg-close" type="button" (click)="cancel()">
           <mat-icon>close</mat-icon>
@@ -334,7 +334,7 @@ export class EvenementFormComponent implements OnInit {
       this.form.patchValue({
         titre:        ev.titre,
         categorie:    ev.categorie,
-        montant:      ev.montant / 100,   // centimes → Ariary
+        montant:      ev.montant,
         dateEcheance: ev.dateEcheance,
         recurrence:   ev.recurrence,
         statut:       ev.statut,
@@ -352,7 +352,7 @@ export class EvenementFormComponent implements OnInit {
     const dto = {
       titre:        v.titre!,
       categorie:    v.categorie!,
-      montant:      Math.round((v.montant ?? 0) * 100), // Ariary → centimes
+      montant:      v.montant ?? 0,
       dateEcheance: v.dateEcheance!,
       recurrence:   v.recurrence!,
       statut:       v.statut!,

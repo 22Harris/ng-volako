@@ -1,7 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Operation, CreateOperationDto, UpdateOperationDto, OperationType } from '../models/operation.model';
+import {
+  Operation,
+  CreateOperationDto,
+  UpdateOperationDto,
+  OperationType,
+} from '../models/operation.model';
 import { OperationCategory, OPERATION_TYPE_CONFIG } from '../utils/operation-type.utils';
 import { environment } from '../../../environments/environment';
 import { map } from 'rxjs/operators';
@@ -21,16 +26,19 @@ export class OperationService {
 
   getAll(filter?: OperationFilter): Observable<Operation[]> {
     let params = new HttpParams();
-    if (filter?.type)     params = params.set('type', filter.type);
+    if (filter?.type) params = params.set('type', filter.type);
     if (filter?.dateFrom) params = params.set('dateFrom', filter.dateFrom);
-    if (filter?.dateTo)   params = params.set('dateTo', filter.dateTo);
+    if (filter?.dateTo) params = params.set('dateTo', filter.dateTo);
 
-    return this.http.get<Operation[]>(this.api, { params }).pipe(
-      map(ops => filter?.category
-        ? ops.filter(o => OPERATION_TYPE_CONFIG[o.type]?.category === filter.category)
-        : ops
-      ),
-    );
+    return this.http
+      .get<Operation[]>(this.api, { params })
+      .pipe(
+        map((ops) =>
+          filter?.category
+            ? ops.filter((o) => OPERATION_TYPE_CONFIG[o.type]?.category === filter.category)
+            : ops,
+        ),
+      );
   }
 
   getById(id: number): Observable<Operation> {

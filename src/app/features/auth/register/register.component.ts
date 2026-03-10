@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { AlertService } from '../../../shared/components/alert/alert.service';
 
 export function passwordMatchValidator(group: AbstractControl): ValidationErrors | null {
   const pw  = group.get('password')?.value;
@@ -378,6 +379,7 @@ export class RegisterComponent {
   private readonly fb     = inject(FormBuilder);
   private readonly auth   = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly alert  = inject(AlertService);
 
   hidePassword = signal(true);
   loading      = signal(false);
@@ -390,14 +392,28 @@ export class RegisterComponent {
     passwordConfirm: ['', Validators.required],
   }, { validators: passwordMatchValidator });
 
+  private resolveRegisterError(err: any): string {
+    if (err.status === 0)   return 'Impossible de contacter le serveur. Vérifiez votre connexion.';
+    if (err.status === 409) return 'Cette adresse email est déjà utilisée.';
+    if (err.status === 400 || err.status === 422) {
+      const msg = err.error?.message;
+      return Array.isArray(msg) ? msg.join(' ') : (msg ?? 'Données invalides.');
+    }
+    if (err.status >= 500)  return 'Erreur serveur. Veuillez réessayer plus tard.';
+    const msg = err.error?.message;
+    return Array.isArray(msg) ? msg.join(' ') : (msg ?? "Erreur lors de l'inscription.");
+  }
+
   submit(): void {
     if (this.registerForm.invalid) return;
     this.loading.set(true);
     this.apiError.set('');
     this.auth.register(this.registerForm.getRawValue() as any).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => { void this.router.navigate(['/dashboard']); },
       error: (err) => {
-        this.apiError.set(err.error?.message ?? "Erreur lors de l'inscription");
+        const msg = this.resolveRegisterError(err);
+        this.apiError.set(msg);
+        this.alert.error(msg);
         this.loading.set(false);
       }
     });

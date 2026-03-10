@@ -42,6 +42,20 @@ const CLASS_NAMES: Record<number, string> = {
   template: `
     <div class="page">
 
+      <!-- ══ Print-only header (shown on every printed page via position:fixed) ══ -->
+      <div class="print-header-fixed">
+        <div class="phf-left">
+          <span class="phf-brand">Volako</span>
+          <span class="phf-sep">·</span>
+          <span class="phf-title">
+            @if (activeTab() === 'balance') { Balance générale des comptes }
+            @if (activeTab() === 'bilan')   { Bilan comptable }
+            @if (activeTab() === 'resultat') { Compte de résultat }
+          </span>
+        </div>
+        <span class="phf-date">Édité le {{ today }}</span>
+      </div>
+
       <!-- ── Header ── -->
       <div class="page-header">
         <div>
@@ -698,10 +712,72 @@ const CLASS_NAMES: Record<number, string> = {
       .tab-btn { font-size: 11px; padding: 9px 10px; gap: 5px; }
     }
 
+    /* ── Print-only header (hidden on screen) ── */
+    .print-header-fixed { display: none; }
+
     @media print {
-      .tab-bar, .btn-print { display: none !important; }
-      .report-card { box-shadow: none; border: 1px solid #dde; }
-      .page { gap: 0; }
+      /* ── Print header: fixed at top of every page ── */
+      /* @page { margin: 20mm 12mm 15mm } in global styles.scss provides real margins on every page.
+         The fixed header sits in the 20mm top margin area on every printed page. */
+      .print-header-fixed {
+        display: flex !important;
+        justify-content: space-between; align-items: baseline;
+        position: fixed; top: 0; left: 0; right: 0;
+        padding: 4mm 12mm 3mm;
+        border-bottom: 2px solid #0d1b2a;
+        background: white; z-index: 9999;
+      }
+      .phf-brand { font-size: 13pt; font-weight: 900; color: #0d1b2a; }
+      .phf-sep   { margin: 0 8px; color: #b0bec5; }
+      .phf-title { font-size: 10pt; font-weight: 700; color: #1565c0; }
+      .phf-date  { font-size: 8pt; color: #78909c; }
+
+      /* @page top margin already clears the header — no extra padding needed */
+      .page { padding-top: 0 !important; gap: 0; }
+
+      /* Hide interactive chrome */
+      .tab-bar, .btn-print, .page-header { display: none !important; }
+
+      /* Card cleanup */
+      .report-card { box-shadow: none !important; border: none !important; padding: 0 !important; gap: 12px !important; }
+      .report-header mat-icon { display: none !important; }
+
+      /* Let the table use full width — no horizontal scroll clipping */
+      .table-wrap { overflow: visible !important; }
+
+      /* Repeat <thead> on every new page; <tfoot> stays at the very end */
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+
+      /* Compact font — fits more rows per page */
+      .report-table    { font-size: 10pt; }
+      .report-table th { font-size: 8pt;  padding: 5px 8px; }
+      .report-table td { padding: 5px 8px; font-size: 10pt; }
+
+      /* ── Page-break control (both legacy + modern for max compatibility) ──
+         Goal: class header stays with its first data row;
+               subtotal stays glued to the last data row of its group.        */
+      .report-table tr                 { page-break-inside: avoid; break-inside: avoid; }
+      .cls-header-row                  { page-break-after:  avoid; break-after:  avoid; }
+      .subtotal-row                    { page-break-before: avoid; break-before: avoid; }
+      tfoot .total-row                 { page-break-before: avoid; break-before: avoid; }
+
+      /* Balance summary KPIs */
+      .balance-summary { grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; }
+      .bs-item { padding: 8px 12px; }
+
+      /* Bilan: Actif + Passif stacked vertically (A4 portrait — no room for side-by-side) */
+      .bilan-cols { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .bilan-col  { page-break-inside: avoid; break-inside: avoid; }
+      .bilan-kpi  { flex-wrap: nowrap; }
+      .bk-equals  { font-size: 20pt; }
+
+      /* Résultat: Produits + Charges stacked vertically */
+      .resultat-cols  { grid-template-columns: 1fr !important; gap: 8px !important; }
+      .cmp-bar-wrap   { display: none !important; } /* visual-only bar */
+      .resultat-kpi   { flex-wrap: nowrap; }
+      .rk-minus, .rk-equals { font-size: 20pt; }
+      .resultat-final { page-break-inside: avoid; break-inside: avoid; margin-top: 10px; }
     }
   `],
 })
@@ -709,13 +785,14 @@ export class RapportsComponent implements OnInit {
   private readonly accountService = inject(AccountService);
   accounts = signal<Account[]>([]);
   activeTab = signal<ReportTab>('balance');
+  readonly today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   ngOnInit(): void {
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
   }
 
   setTab(tab: ReportTab): void { this.activeTab.set(tab); }
-  print(): void { window.print(); }
+  print(): void { globalThis.print(); }
 
   /* ── Generic helpers ── */
   private accountDebit(a: Account)  { return (a.journalLines ?? []).reduce((s, l) => s + l.debit,  0); }

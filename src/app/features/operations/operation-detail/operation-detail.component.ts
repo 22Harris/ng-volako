@@ -36,9 +36,6 @@ import { OPERATION_TYPE_CONFIG } from '../../../core/utils/operation-type.utils'
           <span class="date">{{ operation()!.date | date:'dd/MM/yyyy' }}</span>
         </div>
         <div class="actions">
-          <button mat-stroked-button [routerLink]="['/operations', operation()!.id, 'edit']">
-            <mat-icon>edit</mat-icon> Modifier
-          </button>
           <button mat-stroked-button color="warn" (click)="confirmDelete()">
             <mat-icon>delete</mat-icon> Supprimer
           </button>
@@ -118,8 +115,8 @@ export class OperationDetailComponent implements OnInit {
   lineColumns = ['accountId', 'debit', 'credit'];
   typeConfig  = OPERATION_TYPE_CONFIG;
 
-  totalDebit  = computed(() => this.operation()?.entries.flatMap(e => e.lines).reduce((s, l) => s + l.debit, 0) ?? 0);
-  totalCredit = computed(() => this.operation()?.entries.flatMap(e => e.lines).reduce((s, l) => s + l.credit, 0) ?? 0);
+  totalDebit  = computed(() => this.operation()?.entries?.flatMap(e => e.lines).reduce((s, l) => s + l.debit, 0) ?? 0);
+  totalCredit = computed(() => this.operation()?.entries?.flatMap(e => e.lines).reduce((s, l) => s + l.credit, 0) ?? 0);
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');

@@ -310,6 +310,123 @@ mat-card.v-card {
   overflow: hidden !important;
 }
 
+/* ==================== PRINT ==================== */
+/*
+ * @page at top level (not inside @media print — spec requirement).
+ * margin:0 removes Chrome's margin area → browser URL/date decorations disappear.
+ * Page margins are then provided via CSS padding on .content below.
+ */
+/*
+ * Real @page margins — applied to EVERY printed page automatically.
+ * Top: 20mm gives room for the fixed running header (~13mm tall).
+ * Sides: 12mm, Bottom: 15mm.
+ * Margin-box rules suppress browser default URL/date/page-number decorations.
+ */
+@page {
+  size: A4 portrait;
+  margin: 20mm 12mm 15mm;
+  @top-left     { content: none; }
+  @top-center   { content: none; }
+  @top-right    { content: none; }
+  @bottom-left  { content: none; }
+  @bottom-center { content: none; }
+  @bottom-right  { content: none; }
+}
+
+@media print {
+  /* Hide navigation chrome */
+  .sidebar,
+  .top-bar,
+  .search-wrap { display: none !important; }
+
+  /*
+   * CRITICAL: The shell uses height:100vh + overflow:hidden which clips content
+   * to one screen-height, preventing the browser from seeing subsequent pages.
+   * Reset all scroll containers so the full content is available for pagination.
+   */
+  .shell {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .content-wrap {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+  .content {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body, .content-wrap, .content { background: white !important; }
+
+  /* Hide interactive controls */
+  .btn-print,
+  .tab-bar,
+  button:not(.print-keep) { display: none !important; }
+
+  /* Remove card chrome */
+  mat-card, .v-card, .report-card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
+/* ==================== NATIVE SELECT ==================== */
+/*
+ * Custom chevron arrow for all native <select> elements.
+ * Uses !important to override Angular's scoped component styles
+ * (which have higher specificity via [_ngcontent-xxx] attribute).
+ */
+
+/* Transparent overlay selects (sit inside icon+border containers) */
+.filter-select,
+.fi-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378909c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 10px 7px !important;
+  padding-right: 22px !important;
+  cursor: pointer;
+  &:focus { outline: none !important; }
+}
+
+/* Pagination size select — compact, has own border/background */
+.pag-size-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378909c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 10px 7px !important;
+  padding-right: 26px !important;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  &:hover  { border-color: var(--clr-primary) !important; }
+  &:focus  { outline: none !important; border-color: var(--clr-primary) !important; box-shadow: 0 0 0 3px rgba(21,101,192,.12) !important; }
+}
+
+/* Form-modal select (v-input provides border/padding; only add the arrow) */
+.v-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378909c' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 12px 8px !important;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+
 /* ==================== DIALOG VOLAKO ==================== */
 .volako-dialog .mat-mdc-dialog-container {
   padding: 0 !important;

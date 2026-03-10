@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -158,7 +159,6 @@ interface FlatLine {
               <ng-container matColumnDef="date">
                 <th mat-header-cell *matHeaderCellDef>Date</th>
                 <td mat-cell *matCellDef="let row">{{ row.date | date: 'dd/MM/yyyy' }}</td>
-                <td mat-footer-cell *matFooterCellDef><strong>Total</strong></td>
               </ng-container>
 
               <ng-container matColumnDef="label">
@@ -166,7 +166,6 @@ interface FlatLine {
                 <td mat-cell *matCellDef="let row">
                   <span class="entry-link">{{ row.entryLabel }}</span>
                 </td>
-                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="account">
@@ -174,7 +173,6 @@ interface FlatLine {
                 <td mat-cell *matCellDef="let row">
                   <span class="account-chip">{{ row.accountId | accountCode: accounts() }}</span>
                 </td>
-                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="debit">
@@ -185,9 +183,6 @@ interface FlatLine {
                   } @else {
                     <span class="amount zero">—</span>
                   }
-                </td>
-                <td mat-footer-cell *matFooterCellDef class="num">
-                  <strong class="debit-amount">{{ totalDebit() | cents }}</strong>
                 </td>
               </ng-container>
 
@@ -200,9 +195,6 @@ interface FlatLine {
                     <span class="amount zero">—</span>
                   }
                 </td>
-                <td mat-footer-cell *matFooterCellDef class="num">
-                  <strong class="credit-amount">{{ totalCredit() | cents }}</strong>
-                </td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
@@ -210,7 +202,6 @@ interface FlatLine {
                 class="data-row"
                 [class.row-selected]="selectedEntryId() === row.entryId"
                 (click)="selectLine(row)"></tr>
-              <tr mat-footer-row *matFooterRowDef="displayedColumns; sticky: true"></tr>
             </table>
 
             @if (filteredLines().length === 0) {
@@ -222,6 +213,14 @@ interface FlatLine {
                 </button>
               </div>
             }
+          </div>
+
+          <!-- Barre Total fixe -->
+          <div class="total-bar">
+            <strong class="total-bar-label">Total</strong>
+            <span class="total-bar-spacer"></span>
+            <span class="total-bar-col debit-amount">{{ totalDebit() | cents }}</span>
+            <span class="total-bar-col credit-amount">{{ totalCredit() | cents }}</span>
           </div>
 
           <!-- Pagination -->
@@ -324,7 +323,8 @@ interface FlatLine {
     </div>
   `,
   styles: [`
-    .page { display: flex; flex-direction: column; height: calc(100vh - 64px); gap: 16px; }
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .page { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 16px; }
 
     /* ── Header ── */
     .page-header {
@@ -506,6 +506,17 @@ interface FlatLine {
     .zero          { color: #cfd8dc; }
     .num           { text-align: right !important; }
 
+    /* ── Barre Total ── */
+    .total-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 16px; flex-shrink: 0;
+      background: #f0f4f8; border-top: 2px solid #dde6f0;
+      font-size: 13px; font-variant-numeric: tabular-nums;
+    }
+    .total-bar-label { font-weight: 700; color: #475569; }
+    .total-bar-spacer { flex: 1; }
+    .total-bar-col { width: 120px; text-align: right; font-weight: 700; flex-shrink: 0; }
+
     /* ── Pagination ── */
     .paginator-wrap {
       display: flex; align-items: center; justify-content: space-between;
@@ -670,6 +681,8 @@ export class JournalListComponent implements OnInit {
     sens:      ['tous'],
   });
 
+  filterValues = toSignal(this.filterForm.valueChanges, { initialValue: this.filterForm.value });
+
   paginatedLines = computed(() => {
     const start = this.pageIndex() * this.pageSize();
     return this.filteredLines().slice(start, start + this.pageSize());
@@ -692,7 +705,7 @@ export class JournalListComponent implements OnInit {
   totalPages  = computed(() => Math.max(1, Math.ceil(this.filteredLines().length / this.pageSize())));
 
   hasActiveFilters = computed(() => {
-    const f = this.filterForm.value;
+    const f = this.filterValues();
     return !!(f.accountId || f.dateFrom || f.dateTo || f.label || f.sens !== 'tous');
   });
 

@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder } from '@angular/forms';
@@ -170,7 +171,8 @@ const CLASS_LABELS: Record<number, string> = {
     </div>
   `,
   styles: [`
-    .page { display: flex; flex-direction: column; height: calc(100vh - 64px); gap: 16px; }
+    :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    .page { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 16px; }
 
     .page-header {
       display: flex; justify-content: space-between; align-items: flex-start;
@@ -316,8 +318,10 @@ export class AccountListComponent implements OnInit {
     solde:  ['tous'],
   });
 
+  filterValues = toSignal(this.filterForm.valueChanges, { initialValue: this.filterForm.value });
+
   filteredAccounts = computed(() => {
-    const f     = this.filterForm.value;
+    const f     = this.filterValues();
     const term  = (f.search ?? '').toLowerCase().trim();
     return this.accounts().filter(a => {
       if (f.cls && a.class !== f.cls) return false;
@@ -333,7 +337,7 @@ export class AccountListComponent implements OnInit {
   });
 
   hasActiveFilters = computed(() => {
-    const f = this.filterForm.value;
+    const f = this.filterValues();
     return !!(f.search || f.cls || f.solde !== 'tous');
   });
 

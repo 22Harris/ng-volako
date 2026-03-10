@@ -130,6 +130,7 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
                 <td mat-cell *matCellDef="let l; let i = index">
                   <span class="row-num">{{ i + 1 }}</span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="debit">
@@ -140,6 +141,9 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
                   } @else {
                     <span class="amount zero">—</span>
                   }
+                </td>
+                <td mat-footer-cell *matFooterCellDef class="num">
+                  <span class="amount pos">{{ totalDebit() | cents }}</span>
                 </td>
               </ng-container>
 
@@ -152,6 +156,9 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
                     <span class="amount zero">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="num">
+                  <span class="amount" style="color:#1565c0;font-weight:700">{{ totalCredit() | cents }}</span>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="net">
@@ -162,6 +169,14 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
                     [class.neg]="(l.debit - l.credit) < 0"
                     [class.zero]="(l.debit - l.credit) === 0">
                     {{ (l.debit - l.credit) | cents }}
+                  </span>
+                </td>
+                <td mat-footer-cell *matFooterCellDef class="num">
+                  <span class="amount"
+                    [class.pos]="solde() > 0"
+                    [class.neg]="solde() < 0"
+                    [class.zero]="solde() === 0">
+                    {{ solde() | cents }}
                   </span>
                 </td>
               </ng-container>

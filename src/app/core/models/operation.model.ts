@@ -48,7 +48,7 @@ export interface Operation {
   date: string;
   label: string;
   amount: number;
-  entries: JournalEntry[];
+  entries?: JournalEntry[];
 }
 
 export interface CreateOperationDto {

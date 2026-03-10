@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { ObjectifService } from '../../core/services/objectif.service';
-import { Objectif, ObjectifStatut } from '../../core/models/objectif.model';
+import { Objectif, ObjectifStatut, ObjectifCategorie, CreateObjectifDto } from '../../core/models/objectif.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AlertService } from '../../shared/components/alert/alert.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
@@ -217,6 +217,79 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
         </div>
       }
 
+      <!-- ── Formulaire création objectif ── -->
+      @if (formOpen()) {
+        <div class="versement-overlay" (click)="cancelForm()">
+          <div class="versement-modal create-modal" (click)="$event.stopPropagation()">
+            <h3>Nouvel objectif</h3>
+
+            <label class="v-label">Nom *</label>
+            <input class="v-input" [(ngModel)]="formNom" placeholder="ex: Fonds d'urgence"/>
+
+            <label class="v-label">Description</label>
+            <input class="v-input" [(ngModel)]="formDesc" placeholder="(optionnel)"/>
+
+            <div class="form-row">
+              <div class="form-col">
+                <label class="v-label">Catégorie *</label>
+                <select class="v-input v-select" [(ngModel)]="formCategorie">
+                  @for (cat of categories; track cat.val) {
+                    <option [value]="cat.val">{{ cat.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="v-label">Icône Material</label>
+                <select class="v-input v-select" [(ngModel)]="formIcone">
+                  @for (ic of iconOptions; track ic) {
+                    <option [value]="ic">{{ ic }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col">
+                <label class="v-label">Montant cible (Ar) *</label>
+                <input class="v-input" type="number" min="1" [(ngModel)]="formMontantCible" placeholder="0"/>
+              </div>
+              <div class="form-col">
+                <label class="v-label">Déjà épargné (Ar)</label>
+                <input class="v-input" type="number" min="0" [(ngModel)]="formMontantActuel" placeholder="0"/>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col">
+                <label class="v-label">Date de début *</label>
+                <input class="v-input" type="date" [(ngModel)]="formDateDebut"/>
+              </div>
+              <div class="form-col">
+                <label class="v-label">Date d'échéance *</label>
+                <input class="v-input" type="date" [(ngModel)]="formDateEcheance"/>
+              </div>
+            </div>
+
+            <label class="v-label">Couleur</label>
+            <div class="color-row">
+              @for (c of colorOptions; track c) {
+                <button class="color-swatch" [style.background]="c"
+                        [class.selected]="formCouleur === c"
+                        (click)="formCouleur = c"></button>
+              }
+            </div>
+
+            <div class="v-actions">
+              <button class="v-btn-cancel" (click)="cancelForm()">Annuler</button>
+              <button class="v-btn-save" (click)="confirmCreate()"
+                      [disabled]="!formNom || formMontantCible <= 0 || !formDateDebut || !formDateEcheance">
+                <mat-icon>add</mat-icon>Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
     </div>
   `,
   styles: [`
@@ -361,10 +434,25 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 
     /* ── Empty ── */
     .empty-state {
-      background: white; border-radius: 14px; padding: 48px 24px;
+      background: white; border-radius: 14px; padding: 56px 24px;
       text-align: center; color: #90a4ae; box-shadow: 0 2px 8px rgba(13,27,42,.07);
-      mat-icon { font-size: 52px; width: 52px; height: 52px; margin-bottom: 12px; }
-      p { font-size: 15px; margin: 0 0 20px; }
+      mat-icon {
+        font-size: 64px; width: 64px; height: 64px; margin-bottom: 16px;
+        color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
+      }
+      p { font-size: 15px; margin: 0 0 28px; }
+      .btn-new {
+        display: inline-flex;
+        background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+        padding: 14px 32px; font-size: 14px; border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(21,101,192,.35);
+        transition: background .2s, box-shadow .2s, transform .15s;
+        &:hover {
+          background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+          box-shadow: 0 6px 24px rgba(21,101,192,.45);
+          transform: translateY(-2px);
+        }
+      }
     }
 
     /* ── Versement overlay ── */
@@ -380,14 +468,24 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
       h3 { font-size: 18px; font-weight: 800; color: #0d1b2a; margin: 0 0 4px; }
       p  { font-size: 13px; color: #78909c; margin: 0 0 20px; }
     }
+    .create-modal { width: 520px; }
+    .form-row { display: flex; gap: 14px; }
+    .form-col  { flex: 1; display: flex; flex-direction: column; }
+    .v-select  { font-weight: 600; font-size: 13px; }
+    .color-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .color-swatch {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+      transition: transform .15s, border-color .15s;
+      &:hover   { transform: scale(1.15); }
+      &.selected { border-color: #0d1b2a; transform: scale(1.15); }
+    }
     .v-label { font-size: 12px; font-weight: 700; color: #546e7a; display: block; margin-bottom: 6px; }
     .v-input {
       width: 100%; padding: 10px 14px; border: 1px solid #dde3ea; border-radius: 8px;
-      font-size: 15px; font-weight: 700; color: #0d1b2a; margin-bottom: 20px;
-      box-sizing: border-box;
+      font-size: 14px; color: #0d1b2a; margin-bottom: 16px; box-sizing: border-box;
       &:focus { outline: none; border-color: #1565c0; }
     }
-    .v-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .v-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
     .v-btn-cancel {
       padding: 10px 18px; border-radius: 8px; border: 1px solid #dde3ea;
       background: white; color: #546e7a; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -398,7 +496,8 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
       border-radius: 8px; border: none; background: #1565c0; color: white;
       font-size: 13px; font-weight: 700; cursor: pointer;
       mat-icon { font-size: 16px; width: 16px; height: 16px; }
-      &:hover { background: #0d47a1; }
+      &:hover    { background: #0d47a1; }
+      &:disabled { background: #b0bec5; cursor: default; }
     }
 
     @media (max-width: 1200px) { .obj-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -418,6 +517,39 @@ export class ObjectifsComponent implements OnInit {
   versementObjId  = signal<number | null>(null);
   versementObjNom = signal('');
   versementMontant = 0;
+
+  // Création objectif state
+  formOpen           = signal(false);
+  formNom            = '';
+  formDesc           = '';
+  formCategorie: ObjectifCategorie = 'EPARGNE';
+  formMontantCible   = 0;
+  formMontantActuel  = 0;
+  formDateDebut      = '';
+  formDateEcheance   = '';
+  formCouleur        = '#1565c0';
+  formIcone          = 'savings';
+
+  readonly categories: { val: ObjectifCategorie; label: string }[] = [
+    { val: 'EPARGNE',        label: 'Épargne' },
+    { val: 'SECURITE',       label: 'Sécurité' },
+    { val: 'INVESTISSEMENT', label: 'Investissement' },
+    { val: 'REMBOURSEMENT',  label: 'Remboursement' },
+    { val: 'PROJET',         label: 'Projet' },
+    { val: 'RETRAITE',       label: 'Retraite' },
+    { val: 'AUTRE',          label: 'Autre' },
+  ];
+
+  readonly iconOptions = [
+    'savings', 'shield', 'trending_up', 'credit_card',
+    'rocket_launch', 'elderly', 'home', 'directions_car',
+    'school', 'beach_access', 'medical_services', 'category',
+  ];
+
+  readonly colorOptions = [
+    '#1565c0', '#2e7d32', '#006064', '#bf360c',
+    '#f57f17', '#4a148c', '#880e4f', '#546e7a',
+  ];
 
   readonly filterBtns: { val: FilterStatut; label: string }[] = [
     { val: 'TOUT',        label: 'Tous' },
@@ -460,7 +592,39 @@ export class ObjectifsComponent implements OnInit {
   }
 
   openForm(): void {
-    this.alert.info('Formulaire de création d\'objectif — disponible prochainement.');
+    this.formNom           = '';
+    this.formDesc          = '';
+    this.formCategorie     = 'EPARGNE';
+    this.formMontantCible  = 0;
+    this.formMontantActuel = 0;
+    this.formDateDebut     = '2026-03-06';
+    this.formDateEcheance  = '';
+    this.formCouleur       = '#1565c0';
+    this.formIcone         = 'savings';
+    this.formOpen.set(true);
+  }
+
+  cancelForm(): void { this.formOpen.set(false); }
+
+  confirmCreate(): void {
+    if (!this.formNom || this.formMontantCible <= 0 || !this.formDateDebut || !this.formDateEcheance) return;
+    const dto: CreateObjectifDto = {
+      nom:           this.formNom,
+      description:   this.formDesc || undefined,
+      categorie:     this.formCategorie,
+      montantCible:  this.formMontantCible,
+      montantActuel: this.formMontantActuel,
+      dateDebut:     this.formDateDebut,
+      dateEcheance:  this.formDateEcheance,
+      couleur:       this.formCouleur,
+      icone:         this.formIcone,
+      statut:        'EN_COURS',
+    };
+    this.objectifService.create(dto).subscribe(created => {
+      this.objectifs.update(list => [...list, created]);
+      this.formOpen.set(false);
+      this.alert.success('Objectif créé avec succès');
+    });
   }
 
   togglePause(obj: Objectif): void {
@@ -495,8 +659,7 @@ export class ObjectifsComponent implements OnInit {
   confirmVersement(): void {
     const id = this.versementObjId();
     if (!id || this.versementMontant <= 0) return;
-    const centimes = Math.round(this.versementMontant * 100);
-    this.objectifService.versement(id, centimes).subscribe(updated => {
+    this.objectifService.versement(id, this.versementMontant).subscribe(updated => {
       this.objectifs.update(list => list.map(o => o.id === updated.id ? updated : o));
       this.versementObjId.set(null);
       this.alert.success(`Versement de ${this.versementMontant.toLocaleString('fr-FR')} Ar enregistré`);

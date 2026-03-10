@@ -318,6 +318,48 @@ interface EnrichedLigne extends BudgetLigne {
         </div>
       }
 
+      <!-- ── Formulaire ajout ligne ── -->
+      @if (addFormOpen()) {
+        <div class="versement-overlay" (click)="cancelAdd()">
+          <div class="versement-modal add-modal" (click)="$event.stopPropagation()">
+            <h3>Ajouter une ligne au budget</h3>
+            <p>{{ monthLabel() }}</p>
+
+            <div class="form-row">
+              <div class="form-group half">
+                <label class="v-label">Type</label>
+                <div class="type-toggle">
+                  <button class="type-btn" [class.active-charge]="addFormType === 'CHARGE'"
+                          (click)="addFormType = 'CHARGE'">Charge</button>
+                  <button class="type-btn" [class.active-produit]="addFormType === 'PRODUIT'"
+                          (click)="addFormType = 'PRODUIT'">Produit</button>
+                </div>
+              </div>
+              <div class="form-group half">
+                <label class="v-label">Catégorie</label>
+                <input class="v-input" [(ngModel)]="addFormCategorie" placeholder="ex: Loyer, Salaires…"/>
+              </div>
+            </div>
+
+            <label class="v-label">Libellé</label>
+            <input class="v-input" [(ngModel)]="addFormLibelle" placeholder="Description de la ligne"
+                   (keyup.enter)="confirmAdd()"/>
+
+            <label class="v-label">Montant prévu (Ar)</label>
+            <input class="v-input" type="number" min="0" [(ngModel)]="addFormMontant" placeholder="0"
+                   (keyup.enter)="confirmAdd()"/>
+
+            <div class="v-actions">
+              <button class="v-btn-cancel" (click)="cancelAdd()">Annuler</button>
+              <button class="v-btn-save" (click)="confirmAdd()"
+                      [disabled]="!addFormLibelle || addFormMontant <= 0">
+                <mat-icon>add</mat-icon>Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
     </div>
   `,
   styles: [`
@@ -477,11 +519,73 @@ interface EnrichedLigne extends BudgetLigne {
 
     /* ── Empty state ── */
     .empty-state {
-      background: white; border-radius: 14px; padding: 48px 24px;
+      background: white; border-radius: 14px; padding: 56px 24px;
       text-align: center; color: #90a4ae;
       box-shadow: 0 2px 8px rgba(13,27,42,.07);
-      mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 12px; }
-      p { font-size: 15px; margin: 0 0 20px; }
+      mat-icon {
+        font-size: 64px; width: 64px; height: 64px; margin-bottom: 16px;
+        color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
+      }
+      p { font-size: 15px; margin: 0 0 28px; }
+      .btn-add {
+        display: inline-flex;
+        background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
+        padding: 14px 32px; font-size: 14px; border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(21,101,192,.35);
+        transition: background .2s, box-shadow .2s, transform .15s;
+        &:hover {
+          background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+          box-shadow: 0 6px 24px rgba(21,101,192,.45);
+          transform: translateY(-2px);
+        }
+      }
+    }
+
+    /* ── Overlay / modal ── */
+    .versement-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      animation: fadeIn .15s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .versement-modal {
+      background: white; border-radius: 16px; padding: 28px 32px; width: 420px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      h3 { font-size: 18px; font-weight: 800; color: #0d1b2a; margin: 0 0 4px; }
+      p  { font-size: 13px; color: #78909c; margin: 0 0 20px; }
+    }
+    .form-row { display: flex; gap: 16px; margin-bottom: 0; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group.half { flex: 1; }
+    .type-toggle {
+      display: flex; gap: 4px; margin-bottom: 16px;
+    }
+    .type-btn {
+      flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #dde3ea;
+      font-size: 13px; font-weight: 600; cursor: pointer; background: #f0f4f8; color: #546e7a;
+      transition: background .15s, color .15s;
+      &.active-charge  { background: #fde8e8; color: #b71c1c; border-color: #ef9a9a; }
+      &.active-produit { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+    }
+    .v-label { font-size: 12px; font-weight: 700; color: #546e7a; display: block; margin-bottom: 6px; }
+    .v-input {
+      width: 100%; padding: 10px 14px; border: 1px solid #dde3ea; border-radius: 8px;
+      font-size: 15px; color: #0d1b2a; margin-bottom: 16px; box-sizing: border-box;
+      &:focus { outline: none; border-color: #1565c0; }
+    }
+    .v-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+    .v-btn-cancel {
+      padding: 10px 18px; border-radius: 8px; border: 1px solid #dde3ea;
+      background: white; color: #546e7a; font-size: 13px; font-weight: 600; cursor: pointer;
+      &:hover { background: #f0f4f8; }
+    }
+    .v-btn-save {
+      display: flex; align-items: center; gap: 6px; padding: 10px 18px;
+      border-radius: 8px; border: none; background: #1565c0; color: white;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+      &:hover { background: #0d47a1; }
+      &:disabled { background: #b0bec5; cursor: default; }
     }
 
     @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -506,6 +610,13 @@ export class BudgetComponent implements OnInit {
   editLibelle = '';
   editMontant = 0;
   addMode     = signal(false);
+
+  // Add ligne form state
+  addFormOpen      = signal(false);
+  addFormType: 'CHARGE' | 'PRODUIT' = 'CHARGE';
+  addFormCategorie = '';
+  addFormLibelle   = '';
+  addFormMontant   = 0;
 
   ngOnInit(): void {
     this.budgetService.getAll().subscribe(list => this.budgets.set(list));
@@ -597,7 +708,7 @@ export class BudgetComponent implements OnInit {
   startEdit(line: BudgetLigne): void {
     this.editingId.set(line.id);
     this.editLibelle = line.libelle;
-    this.editMontant = Math.round(line.montantPrevu / 100);
+    this.editMontant = line.montantPrevu;
   }
   cancelEdit(): void { this.editingId.set(null); }
 
@@ -605,7 +716,7 @@ export class BudgetComponent implements OnInit {
     const budget = this.currentBudget();
     if (!budget) return;
     const updated: BudgetLigne = {
-      ...line, libelle: this.editLibelle, montantPrevu: Math.round(this.editMontant * 100),
+      ...line, libelle: this.editLibelle, montantPrevu: this.editMontant,
     };
     this.budgetService.saveLigne(budget.id, updated).subscribe(b => {
       this.budgets.update(list => list.map(bgt => bgt.id === b.id ? b : bgt));
@@ -624,6 +735,39 @@ export class BudgetComponent implements OnInit {
   }
 
   addLigne(): void {
-    this.alert.info('Fonctionnalité en cours de développement — ajout via formulaire complet à venir.');
+    this.addFormOpen.set(true);
+    this.addFormType      = 'CHARGE';
+    this.addFormCategorie = '';
+    this.addFormLibelle   = '';
+    this.addFormMontant   = 0;
+  }
+
+  cancelAdd(): void { this.addFormOpen.set(false); }
+
+  confirmAdd(): void {
+    if (!this.addFormLibelle || this.addFormMontant <= 0) return;
+    const ligne = {
+      categorie:    this.addFormCategorie || this.addFormType,
+      libelle:      this.addFormLibelle,
+      montantPrevu: this.addFormMontant,
+      type:         this.addFormType,
+    };
+    const budget = this.currentBudget();
+    if (budget) {
+      this.budgetService.saveLigne(budget.id, ligne as any).subscribe(b => {
+        this.budgets.update(list => list.map(bgt => bgt.id === b.id ? b : bgt));
+        this.addFormOpen.set(false);
+        this.alert.success('Ligne ajoutée');
+      });
+    } else {
+      this.budgetService.create({ exercice: this.selectedExercice(), mois: this.selectedMois(), lignes: [] }).subscribe(b => {
+        this.budgets.update(list => [...list, b]);
+        this.budgetService.saveLigne(b.id, ligne as any).subscribe(updated => {
+          this.budgets.update(list => list.map(bgt => bgt.id === updated.id ? updated : bgt));
+          this.addFormOpen.set(false);
+          this.alert.success('Budget créé et ligne ajoutée');
+        });
+      });
+    }
   }
 }

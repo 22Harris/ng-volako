@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../../core/services/auth.service';
+import { AlertService } from '../../../shared/components/alert/alert.service';
 
 @Component({
   selector: 'app-login',
@@ -361,6 +362,7 @@ export class LoginComponent {
   private readonly fb     = inject(FormBuilder);
   private readonly auth   = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly alert  = inject(AlertService);
 
   hidePassword = signal(true);
   loading      = signal(false);
@@ -371,14 +373,25 @@ export class LoginComponent {
     password: ['', [Validators.required, Validators.minLength(6)]],
   });
 
+  private resolveLoginError(err: any): string {
+    if (err.status === 0)   return 'Impossible de contacter le serveur. Vérifiez votre connexion.';
+    if (err.status === 401) return 'Email ou mot de passe incorrect.';
+    if (err.status === 429) return 'Trop de tentatives. Veuillez réessayer dans quelques minutes.';
+    if (err.status >= 500)  return 'Erreur serveur. Veuillez réessayer plus tard.';
+    const msg = err.error?.message;
+    return Array.isArray(msg) ? msg.join(' ') : (msg ?? 'Identifiants invalides.');
+  }
+
   submit(): void {
     if (this.loginForm.invalid) return;
     this.loading.set(true);
     this.apiError.set('');
     this.auth.login(this.loginForm.getRawValue() as any).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+      next: () => { void this.router.navigate(['/dashboard']); },
       error: (err) => {
-        this.apiError.set(err.error?.message ?? 'Identifiants invalides');
+        const msg = this.resolveLoginError(err);
+        this.apiError.set(msg);
+        this.alert.error(msg);
         this.loading.set(false);
       }
     });
