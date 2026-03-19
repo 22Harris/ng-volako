@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BudgetService } from '../../core/services/budget.service';
+import { ExportService } from '../../core/services/export.service';
 import { AccountService } from '../../core/services/account.service';
 import { JournalEntryService } from '../../core/services/journal-entry.service';
 import { Budget, BudgetLigne } from '../../core/models/budget.model';
@@ -37,7 +38,14 @@ interface EnrichedLigne extends BudgetLigne {
           <p class="page-sub">Prévu vs réel · Suivi mensuel</p>
         </div>
         <div class="header-actions">
-          <button class="btn-add" (click)="addLigne()">
+          @if (budgetLines().length > 0) {
+            <div class="export-btns">
+              <button class="btn-export" (click)="exportCsv()" matTooltip="Exporter CSV"><mat-icon>table_view</mat-icon></button>
+              <button class="btn-export" (click)="exportExcel()" matTooltip="Exporter Excel"><mat-icon>grid_on</mat-icon></button>
+              <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
+            </div>
+          }
+          <button class="btn-primary" (click)="addLigne()">
             <mat-icon>add</mat-icon>
             Ajouter une ligne
           </button>
@@ -116,7 +124,7 @@ interface EnrichedLigne extends BudgetLigne {
         <div class="empty-state">
           <mat-icon>bar_chart</mat-icon>
           <p>Aucun budget défini pour {{ monthLabel() }}</p>
-          <button class="btn-add" (click)="addLigne()">
+          <button class="btn-primary" (click)="addLigne()">
             <mat-icon>add</mat-icon>Créer un budget
           </button>
         </div>
@@ -370,13 +378,20 @@ interface EnrichedLigne extends BudgetLigne {
     .page-sub    { font-size: 13px; color: #78909c; margin: 0; }
     .header-actions { display: flex; gap: 10px; align-items: center; }
 
-    .btn-add {
-      display: flex; align-items: center; gap: 8px;
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
       padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer;
-      background: #1565c0; color: white; font-size: 13px; font-weight: 600;
-      transition: background .15s;
+      background: #1565c0; color: white;
+      font-size: 13px; font-weight: 600; letter-spacing: .1px;
+      box-shadow: 0 1px 3px rgba(21,101,192,.3), 0 4px 12px rgba(21,101,192,.15);
+      transition: background .15s, box-shadow .15s, transform .12s;
       mat-icon { font-size: 18px; width: 18px; height: 18px; }
-      &:hover { background: #0d47a1; }
+      &:hover {
+        background: #1976d2;
+        box-shadow: 0 2px 6px rgba(21,101,192,.35), 0 6px 18px rgba(21,101,192,.2);
+        transform: translateY(-1px);
+      }
+      &:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(21,101,192,.25); }
     }
 
     /* ── Month nav ── */
@@ -527,18 +542,6 @@ interface EnrichedLigne extends BudgetLigne {
         color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
       }
       p { font-size: 15px; margin: 0 0 28px; }
-      .btn-add {
-        display: inline-flex;
-        background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
-        padding: 14px 32px; font-size: 14px; border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(21,101,192,.35);
-        transition: background .2s, box-shadow .2s, transform .15s;
-        &:hover {
-          background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
-          box-shadow: 0 6px 24px rgba(21,101,192,.45);
-          transform: translateY(-2px);
-        }
-      }
     }
 
     /* ── Overlay / modal ── */
@@ -588,6 +591,16 @@ interface EnrichedLigne extends BudgetLigne {
       &:disabled { background: #b0bec5; cursor: default; }
     }
 
+    .export-btns { display: flex; gap: 4px; }
+    .btn-export {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: white; cursor: pointer; color: #546e7a; transition: all .15s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      &:hover { border-color: #90caf9; background: #e3f2fd; color: #1565c0; }
+      &.pdf:hover { border-color: #ef9a9a; background: #fde8e8; color: #c62828; }
+    }
+
     @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px)  { .kpi-grid { grid-template-columns: 1fr; } }
   `],
@@ -596,6 +609,7 @@ export class BudgetComponent implements OnInit {
   private readonly budgetService  = inject(BudgetService);
   private readonly accountService = inject(AccountService);
   private readonly journalService = inject(JournalEntryService);
+  private readonly exportSvc      = inject(ExportService);
   private readonly alert          = inject(AlertService);
 
   budgets  = signal<Budget[]>([]);
@@ -704,6 +718,21 @@ export class BudgetComponent implements OnInit {
       ? Math.min(Math.round(this.totalReelProduits() / this.totalPrevuProduits() * 100), 100)
       : 0
   );
+
+  exportCsv(): void {
+    this.exportSvc.csvBudget(this.budgetLines(), this.monthLabel());
+  }
+
+  exportExcel(): void {
+    this.exportSvc.excelBudget(this.budgetLines(), this.monthLabel());
+  }
+
+  exportPdf(): void {
+    this.exportSvc.pdfBudget(this.budgetLines(), this.monthLabel(), {
+      prevuProduits: this.totalPrevuProduits(), prevuCharges: this.totalPrevuCharges(),
+      reelProduits:  this.totalReelProduits(),  reelCharges:  this.totalReelCharges(),
+    });
+  }
 
   startEdit(line: BudgetLigne): void {
     this.editingId.set(line.id);

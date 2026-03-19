@@ -5,6 +5,8 @@ export interface JournalEntry {
   date: string;         // ISO 8601
   label: string;
   operationId?: number;
+  journalId?: number;
+  pieceNumber?: string;
   lines: JournalLine[];
 }
 
@@ -12,6 +14,7 @@ export interface CreateJournalEntryDto {
   date: string;
   label: string;
   operationId?: number;
+  journalId?: number;
   lines: CreateJournalLineDto[];
 }
 

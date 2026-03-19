@@ -12,12 +12,15 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AppDateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { JournalEntryService } from '../../../core/services/journal-entry.service';
+import { JournalService } from '../../../core/services/journal.service';
 import { OperationService } from '../../../core/services/operation.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { AccountSelectComponent } from '../../../shared/components/account-select/account-select.component';
 import { BalanceIndicatorComponent } from '../../../shared/components/balance-indicator/balance-indicator.component';
 import { balancedEntryValidator, singleSideValidator } from '../../operations/operation-form/operation-form.service';
 import { Operation } from '../../../core/models/operation.model';
+import { Journal, JOURNAL_TYPE_LABELS } from '../../../core/models/journal.model';
+import { CODE_TVA_LABELS, CodeTva } from '../../../core/models/journal-line.model';
 
 @Component({
   selector: 'app-journal-entry-form',
@@ -38,7 +41,7 @@ import { Operation } from '../../../core/models/operation.model';
     <mat-card>
       <mat-card-content>
         <form [formGroup]="form" (ngSubmit)="submit()">
-          <div class="row-3">
+          <div class="row-4">
             <div class="date-outline-field"
               [class.has-error]="form.get('date')?.invalid && form.get('date')?.touched">
               <label class="date-outline-label">Date</label>
@@ -48,6 +51,15 @@ import { Operation } from '../../../core/models/operation.model';
             <mat-form-field appearance="outline">
               <mat-label>Libellé</mat-label>
               <input matInput formControlName="label" />
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Journal</mat-label>
+              <mat-select formControlName="journalId">
+                <mat-option [value]="null">— Sans journal —</mat-option>
+                @for (j of journals(); track j.id) {
+                  <mat-option [value]="j.id">{{ journalLabel(j) }}</mat-option>
+                }
+              </mat-select>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Opération associée (optionnel)</mat-label>
@@ -62,17 +74,23 @@ import { Operation } from '../../../core/models/operation.model';
 
           @for (lineCtrl of lines.controls; track lineCtrl; let li = $index) {
             <div class="line-row" [formGroup]="asFormGroup(lineCtrl)">
-              <mat-form-field appearance="outline" class="account-field">
-                <mat-label>Compte</mat-label>
-                <app-account-select formControlName="accountId"></app-account-select>
-              </mat-form-field>
+              <app-account-select formControlName="accountId" label="Compte" class="account-field"></app-account-select>
               <mat-form-field appearance="outline">
-                <mat-label>Débit (Ar)</mat-label>
+                <mat-label>Débit (€)</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="debit" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Crédit (Ar)</mat-label>
+                <mat-label>Crédit (€)</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="credit" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="tva-field">
+                <mat-label>Code TVA</mat-label>
+                <mat-select formControlName="codeTva">
+                  <mat-option [value]="null">— Sans TVA —</mat-option>
+                  @for (entry of codeTvaEntries; track entry.code) {
+                    <mat-option [value]="entry.code">{{ entry.label }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
               <button mat-icon-button color="warn" type="button"
                 (click)="removeLine(li)" [disabled]="lines.length <= 2">
@@ -102,8 +120,8 @@ import { Operation } from '../../../core/models/operation.model';
   `,
   styles: [`
     .page-header { margin-bottom: 16px; }
-    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    .line-row { display: grid; grid-template-columns: 2fr 1fr 1fr 48px; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
+    .row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .line-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr 48px; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
     .add-line-btn { margin: 8px 0 16px; }
     .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px; }
 
@@ -139,6 +157,7 @@ import { Operation } from '../../../core/models/operation.model';
 export class JournalEntryFormComponent implements OnInit {
   private fb             = inject(FormBuilder);
   private journalService = inject(JournalEntryService);
+  private readonly journalSvc = inject(JournalService);
   private opService      = inject(OperationService);
   private alertSvc       = inject(AlertService);
   private route          = inject(ActivatedRoute);
@@ -148,10 +167,17 @@ export class JournalEntryFormComponent implements OnInit {
   saving     = signal(false);
   editId     = signal<number | null>(null);
   operations = signal<Operation[]>([]);
+  journals   = signal<Journal[]>([]);
+
+  readonly codeTvaEntries = Object.entries(CODE_TVA_LABELS).map(([code, label]) => ({
+    code: code as CodeTva,
+    label,
+  }));
 
   form = this.fb.group({
     date:        ['', Validators.required],
     label:       ['', Validators.required],
+    journalId:   [null as number | null],
     operationId: [null as number | null],
     lines:       this.fb.array([this.buildLine(), this.buildLine()]),
   }, { validators: balancedEntryValidator });
@@ -161,18 +187,28 @@ export class JournalEntryFormComponent implements OnInit {
   totalDebit  = () => this.lines.controls.reduce((s, l) => s + (+l.get('debit')?.value || 0), 0);
   totalCredit = () => this.lines.controls.reduce((s, l) => s + (+l.get('credit')?.value || 0), 0);
 
+  journalLabel(j: Journal): string {
+    return `${JOURNAL_TYPE_LABELS[j.type]} (${j.type})`;
+  }
+
   ngOnInit(): void {
     this.opService.getAll().subscribe(ops => this.operations.set(ops));
+    this.journalSvc.getAll().subscribe(list => this.journals.set(list));
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode.set(true);
       this.editId.set(+id);
       this.journalService.getById(+id).subscribe(entry => {
-        this.form.patchValue({ date: entry.date, label: entry.label, operationId: entry.operationId ?? null });
+        this.form.patchValue({
+          date: entry.date,
+          label: entry.label,
+          journalId: entry.journalId ?? null,
+          operationId: entry.operationId ?? null,
+        });
         while (this.lines.length) this.lines.removeAt(0);
         entry.lines.forEach(l => {
           const lg = this.buildLine();
-          lg.patchValue({ accountId: l.accountId, debit: l.debit / 100, credit: l.credit / 100 });
+          lg.patchValue({ accountId: l.accountId, debit: l.debit / 100, credit: l.credit / 100, codeTva: l.codeTva ?? null });
           this.lines.push(lg);
         });
       });
@@ -184,6 +220,7 @@ export class JournalEntryFormComponent implements OnInit {
       accountId: [null, Validators.required],
       debit:     [0],
       credit:    [0],
+      codeTva:   [null],
     }, { validators: singleSideValidator });
   }
 
@@ -197,11 +234,13 @@ export class JournalEntryFormComponent implements OnInit {
     const raw = this.form.getRawValue();
     const dto = {
       ...raw,
+      journalId:   raw.journalId   ?? undefined,
       operationId: raw.operationId ?? undefined,
       lines: raw.lines.map((l: any) => ({
         accountId: l.accountId,
         debit:     Math.round((+l.debit || 0) * 100),
         credit:    Math.round((+l.credit || 0) * 100),
+        codeTva:   l.codeTva ?? undefined,
       }))
     };
 

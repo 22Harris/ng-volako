@@ -2,9 +2,11 @@ import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { ObjectifService } from '../../core/services/objectif.service';
+import { ExportService } from '../../core/services/export.service';
 import { Objectif, ObjectifStatut, ObjectifCategorie, CreateObjectifDto } from '../../core/models/objectif.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AlertService } from '../../shared/components/alert/alert.service';
@@ -25,7 +27,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 @Component({
   selector: 'app-objectifs',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatIconModule, MatTooltipModule, CentsPipe, DatePipe],
+  imports: [CommonModule, FormsModule, MatIconModule, MatButtonModule, MatTooltipModule, CentsPipe, DatePipe],
   template: `
     <div class="page">
 
@@ -35,10 +37,19 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
           <h1 class="page-title">Objectifs d'épargne</h1>
           <p class="page-sub">Suivez vos projets financiers et votre progression</p>
         </div>
-        <button class="btn-new" (click)="openForm()">
-          <mat-icon>add</mat-icon>
-          Nouvel objectif
-        </button>
+        <div class="header-actions">
+          @if (objectifs().length > 0) {
+            <div class="export-btns">
+              <button class="btn-export" (click)="exportCsv()" matTooltip="Exporter CSV"><mat-icon>table_view</mat-icon></button>
+              <button class="btn-export" (click)="exportExcel()" matTooltip="Exporter Excel"><mat-icon>grid_on</mat-icon></button>
+              <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
+            </div>
+          }
+          <button class="btn-primary" (click)="openForm()">
+            <mat-icon>add</mat-icon>
+            Nouvel objectif
+          </button>
+        </div>
       </div>
 
       <!-- ── KPI global ── -->
@@ -103,7 +114,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
         <div class="empty-state">
           <mat-icon>flag</mat-icon>
           <p>Aucun objectif pour le moment</p>
-          <button class="btn-new" (click)="openForm()">
+          <button class="btn-primary" (click)="openForm()">
             <mat-icon>add</mat-icon>Créer un objectif
           </button>
         </div>
@@ -299,13 +310,20 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
     .page-title  { font-size: 26px; font-weight: 800; color: #0d1b2a; margin: 0 0 4px; }
     .page-sub    { font-size: 13px; color: #78909c; margin: 0; }
 
-    .btn-new {
-      display: flex; align-items: center; gap: 8px; padding: 10px 20px;
-      border-radius: 10px; border: none; cursor: pointer;
-      background: #1565c0; color: white; font-size: 13px; font-weight: 600;
-      transition: background .15s;
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer;
+      background: #1565c0; color: white;
+      font-size: 13px; font-weight: 600; letter-spacing: .1px;
+      box-shadow: 0 1px 3px rgba(21,101,192,.3), 0 4px 12px rgba(21,101,192,.15);
+      transition: background .15s, box-shadow .15s, transform .12s;
       mat-icon { font-size: 18px; width: 18px; height: 18px; }
-      &:hover { background: #0d47a1; }
+      &:hover {
+        background: #1976d2;
+        box-shadow: 0 2px 6px rgba(21,101,192,.35), 0 6px 18px rgba(21,101,192,.2);
+        transform: translateY(-1px);
+      }
+      &:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(21,101,192,.25); }
     }
 
     /* ── KPI ── */
@@ -441,18 +459,6 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
         color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
       }
       p { font-size: 15px; margin: 0 0 28px; }
-      .btn-new {
-        display: inline-flex;
-        background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%);
-        padding: 14px 32px; font-size: 14px; border-radius: 12px;
-        box-shadow: 0 4px 16px rgba(21,101,192,.35);
-        transition: background .2s, box-shadow .2s, transform .15s;
-        &:hover {
-          background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
-          box-shadow: 0 6px 24px rgba(21,101,192,.45);
-          transform: translateY(-2px);
-        }
-      }
     }
 
     /* ── Versement overlay ── */
@@ -500,6 +506,17 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
       &:disabled { background: #b0bec5; cursor: default; }
     }
 
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .export-btns { display: flex; gap: 4px; }
+    .btn-export {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: white; cursor: pointer; color: #546e7a; transition: all .15s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      &:hover { border-color: #90caf9; background: #e3f2fd; color: #1565c0; }
+      &.pdf:hover { border-color: #ef9a9a; background: #fde8e8; color: #c62828; }
+    }
+
     @media (max-width: 1200px) { .obj-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 1000px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 700px)  { .obj-grid { grid-template-columns: 1fr; } }
@@ -507,6 +524,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 })
 export class ObjectifsComponent implements OnInit {
   private readonly objectifService = inject(ObjectifService);
+  private readonly exportSvc       = inject(ExportService);
   private readonly alert           = inject(AlertService);
   private readonly dialog          = inject(MatDialog);
 
@@ -590,6 +608,22 @@ export class ObjectifsComponent implements OnInit {
   statutLabel(s: ObjectifStatut): string {
     return { EN_COURS: 'En cours', ATTEINT: 'Atteint', EN_PAUSE: 'En pause', ABANDONNE: 'Abandonné' }[s] ?? s;
   }
+
+  private _toExportRow(o: Objectif) {
+    return {
+      nom: o.nom,
+      categorie: this.catMeta(o.categorie).label,
+      montantActuel: o.montantActuel,
+      montantCible:  o.montantCible,
+      progression:   this.progressionObj(o),
+      dateEcheance:  o.dateEcheance,
+      statut:        this.statutLabel(o.statut),
+    };
+  }
+
+  exportCsv(): void   { this.exportSvc.csvObjectifs(this.filtered().map(o => this._toExportRow(o))); }
+  exportExcel(): void { this.exportSvc.excelObjectifs(this.filtered().map(o => this._toExportRow(o))); }
+  exportPdf(): void   { this.exportSvc.pdfObjectifs(this.filtered().map(o => this._toExportRow(o))); }
 
   openForm(): void {
     this.formNom           = '';

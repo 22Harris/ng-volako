@@ -11,7 +11,7 @@ export class AccountService {
   constructor(private readonly http: HttpClient) {}
 
   private toFrontend(raw: any): Account {
-    return { id: raw.id, code: raw.code, name: raw.name, class: raw.account_class ?? raw.class };
+    return { id: raw.id, code: raw.code, name: raw.name, class: raw.account_class ?? raw.class, isSystem: raw.isSystem ?? false };
   }
 
   private toBackend(dto: CreateAccountDto | UpdateAccountDto): any {
@@ -37,6 +37,10 @@ export class AccountService {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
+  }
+
+  initPcg(): Observable<{ created: number; skipped: number }> {
+    return this.http.post<{ created: number; skipped: number }>(`${this.api}/init-pcg`, {});
   }
 
   checkCode(code: string): Observable<Account[]> {

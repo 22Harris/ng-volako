@@ -408,8 +408,12 @@ export class RegisterComponent {
     if (this.registerForm.invalid) return;
     this.loading.set(true);
     this.apiError.set('');
-    this.auth.register(this.registerForm.getRawValue() as any).subscribe({
-      next: () => { void this.router.navigate(['/dashboard']); },
+    const { name, email, password } = this.registerForm.getRawValue();
+    this.auth.register({ name: name!, email: email!, password: password! }).subscribe({
+      next: () => {
+        this.loading.set(false);
+        void this.router.navigate(['/dashboard']);
+      },
       error: (err) => {
         const msg = this.resolveRegisterError(err);
         this.apiError.set(msg);

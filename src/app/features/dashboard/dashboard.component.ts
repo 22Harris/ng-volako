@@ -423,10 +423,8 @@ export class DashboardComponent implements OnInit {
   }));
 
   ngOnInit(): void {
-    this.accountService.getAll().subscribe(list => this.accounts.set(list));
-    this.operationService.getAll().subscribe(list =>
-      this.lastOperations.set(list.slice(0, 5))
-    );
+    this.accountService.getAll().subscribe({ next: list => this.accounts.set(list), error: () => {} });
+    this.operationService.getAll().subscribe({ next: list => this.lastOperations.set(list.slice(0, 5)), error: () => {} });
   }
 
   getBalanceByClass(cls: number): number {

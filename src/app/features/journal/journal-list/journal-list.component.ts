@@ -8,8 +8,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { JournalEntryService } from '../../../core/services/journal-entry.service';
 import { AccountService } from '../../../core/services/account.service';
+import { JournalService } from '../../../core/services/journal.service';
 import { JournalEntry } from '../../../core/models/journal-entry.model';
 import { Account } from '../../../core/models/account.model';
+import { Journal, JOURNAL_TYPE_LABELS } from '../../../core/models/journal.model';
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
 import { AccountCodePipe } from '../../../shared/pipes/account-code.pipe';
 import { AppDateInputComponent } from '../../../shared/components/date-input/date-input.component';
@@ -17,7 +19,10 @@ import { AppDateInputComponent } from '../../../shared/components/date-input/dat
 interface FlatLine {
   date: string;
   entryLabel: string;
+  pieceNumber: string;
+  journalLabel: string;
   entryId: number;
+  journalId: number | null;
   accountId: number;
   debit: number;
   credit: number;
@@ -60,6 +65,16 @@ interface FlatLine {
             <mat-icon class="filter-icon">manage_search</mat-icon>
             <input class="filter-input" type="text" placeholder="Rechercher un libellé…"
               formControlName="label" (input)="applyFilters()" />
+          </div>
+
+          <div class="filter-group">
+            <mat-icon class="filter-icon">import_contacts</mat-icon>
+            <select class="filter-select" formControlName="journalId" (change)="applyFilters()">
+              <option [ngValue]="null">Tous les journaux</option>
+              @for (j of journals(); track j.id) {
+                <option [ngValue]="j.id">{{ j.type }}</option>
+              }
+            </select>
           </div>
 
           <div class="filter-group">
@@ -155,6 +170,28 @@ interface FlatLine {
         <div class="table-card">
           <div class="table-wrap">
             <table mat-table [dataSource]="paginatedLines()" class="journal-table">
+
+              <ng-container matColumnDef="piece">
+                <th mat-header-cell *matHeaderCellDef>Pièce</th>
+                <td mat-cell *matCellDef="let row">
+                  @if (row.pieceNumber) {
+                    <span class="piece-chip">{{ row.pieceNumber }}</span>
+                  } @else {
+                    <span class="zero">—</span>
+                  }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="journal">
+                <th mat-header-cell *matHeaderCellDef>Journal</th>
+                <td mat-cell *matCellDef="let row">
+                  @if (row.journalLabel !== '—') {
+                    <span class="journal-chip">{{ row.journalLabel }}</span>
+                  } @else {
+                    <span class="zero">—</span>
+                  }
+                </td>
+              </ng-container>
 
               <ng-container matColumnDef="date">
                 <th mat-header-cell *matHeaderCellDef>Date</th>
@@ -492,6 +529,17 @@ interface FlatLine {
     }
 
     .entry-link { color: #1565c0; font-weight: 500; }
+    .piece-chip {
+      display: inline-block; padding: 2px 7px;
+      background: #f3e5f5; color: #6a1b9a;
+      border-radius: 6px; font-size: 11px; font-weight: 700;
+      font-family: monospace; white-space: nowrap;
+    }
+    .journal-chip {
+      display: inline-block; padding: 2px 7px;
+      background: #e8f5e9; color: #2e7d32;
+      border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap;
+    }
     .account-chip {
       display: inline-block; padding: 2px 8px;
       background: #e8f0fe; color: #1a237e;
@@ -660,10 +708,12 @@ interface FlatLine {
 export class JournalListComponent implements OnInit {
   private readonly journalService = inject(JournalEntryService);
   private readonly accountService = inject(AccountService);
+  private readonly journalSvc     = inject(JournalService);
   private readonly fb = inject(FormBuilder);
 
   entries  = signal<JournalEntry[]>([]);
   accounts = signal<Account[]>([]);
+  journals = signal<Journal[]>([]);
   filteredLines   = signal<FlatLine[]>([]);
   selectedEntryId = signal<number | null>(null);
 
@@ -671,10 +721,11 @@ export class JournalListComponent implements OnInit {
   pageSize  = signal(10);
   pageIndex = signal(0);
 
-  displayedColumns = ['date', 'label', 'account', 'debit', 'credit'];
+  displayedColumns = ['piece', 'journal', 'date', 'label', 'account', 'debit', 'credit'];
 
   filterForm = this.fb.group({
     accountId: [null as number | null],
+    journalId: [null as number | null],
     dateFrom:  [''],
     dateTo:    [''],
     label:     [''],
@@ -715,6 +766,13 @@ export class JournalListComponent implements OnInit {
       this.applyFilters();
     });
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
+    this.journalSvc.getAll().subscribe(list => this.journals.set(list));
+  }
+
+  journalTypeLabel(journalId: number | null): string {
+    if (!journalId) return '—';
+    const j = this.journals().find(x => x.id === journalId);
+    return j ? JOURNAL_TYPE_LABELS[j.type] : '—';
   }
 
   applyFilters(): void {
@@ -728,14 +786,21 @@ export class JournalListComponent implements OnInit {
           ? b.date.localeCompare(a.date)
           : a.date.localeCompare(b.date)
       )
+      .filter(entry => {
+        if (f.journalId && entry.journalId !== f.journalId) return false;
+        return true;
+      })
       .flatMap(entry =>
         entry.lines.map(l => ({
-          date:       entry.date,
-          entryLabel: entry.label,
-          entryId:    entry.id,
-          accountId:  l.accountId,
-          debit:      l.debit,
-          credit:     l.credit,
+          date:         entry.date,
+          entryLabel:   entry.label,
+          pieceNumber:  entry.pieceNumber ?? '',
+          journalLabel: this.journalTypeLabel(entry.journalId ?? null),
+          journalId:    entry.journalId ?? null,
+          entryId:      entry.id,
+          accountId:    l.accountId,
+          debit:        l.debit,
+          credit:       l.credit,
         } as FlatLine))
       )
       .filter(row => {
@@ -780,10 +845,12 @@ export class JournalListComponent implements OnInit {
   min(a: number, b: number): number { return Math.min(a, b); }
 
   exportCsv(): void {
-    const rows = [['Date', 'Libellé', 'Compte', 'Débit', 'Crédit']];
+    const rows = [['Pièce', 'Journal', 'Date', 'Libellé', 'Compte', 'Débit', 'Crédit']];
     this.filteredLines().forEach(r => {
       const acc = this.accounts().find(a => a.id === r.accountId);
       rows.push([
+        r.pieceNumber || '',
+        r.journalLabel,
         r.date,
         r.entryLabel,
         acc ? `${acc.code} – ${acc.name}` : String(r.accountId),

@@ -82,6 +82,16 @@ interface SearchResult {
             <mat-icon class="nav-icon">menu_book</mat-icon>
             @if (!collapsed()) { <span class="nav-label">Journal</span> }
           </a>
+          <a class="nav-item" routerLink="/journaux" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Journaux' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">import_contacts</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Journaux</span> }
+          </a>
+          <a class="nav-item" routerLink="/periode-locks" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Verrouillage' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">lock_clock</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Verrouillage</span> }
+          </a>
           <a class="nav-item" routerLink="/accounts" routerLinkActive="active"
             [matTooltip]="collapsed() ? 'Comptes' : ''" matTooltipPosition="right">
             <mat-icon class="nav-icon">account_balance_wallet</mat-icon>
@@ -101,6 +111,27 @@ interface SearchResult {
             [matTooltip]="collapsed() ? 'Rapports' : ''" matTooltipPosition="right">
             <mat-icon class="nav-icon">description</mat-icon>
             @if (!collapsed()) { <span class="nav-label">Rapports</span> }
+          </a>
+          <a class="nav-item" routerLink="/tva" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Déclaration TVA' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">receipt</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">TVA / CA3</span> }
+          </a>
+          <a class="nav-item" routerLink="/rapprochement" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Rapprochement bancaire' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">account_balance</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Rapprochement</span> }
+          </a>
+
+          <a class="nav-item" routerLink="/tiers" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Tiers' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">people</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Tiers</span> }
+          </a>
+          <a class="nav-item" routerLink="/factures" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Factures' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">receipt_long</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Factures</span> }
           </a>
 
           @if (!collapsed()) { <div class="nav-section-label">Planification</div> }
@@ -511,9 +542,10 @@ export class AppShellComponent implements OnInit {
   searchResults = signal<SearchResult[]>([]);
 
   ngOnInit(): void {
-    this.accountService.getAll().subscribe(list => this.allAccounts = list);
-    this.operationService.getAll().subscribe(list => this.allOperations = list);
-    this.evenementService.getAll().subscribe(list => this.allEvenements = list);
+    if (!this.auth.currentUser()) return;
+    this.accountService.getAll().subscribe({ next: list => this.allAccounts = list, error: () => {} });
+    this.operationService.getAll().subscribe({ next: list => this.allOperations = list, error: () => {} });
+    this.evenementService.getAll().subscribe({ next: list => this.allEvenements = list, error: () => {} });
   }
 
   initials = computed(() => {

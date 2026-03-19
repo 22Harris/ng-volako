@@ -67,6 +67,36 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/tutoriels/tutoriels.routes').then((r) => r.tutorielsRoutes),
       },
+      {
+        path: 'tiers',
+        loadChildren: () =>
+          import('./features/tiers/tiers.routes').then((r) => r.tiersRoutes),
+      },
+      {
+        path: 'factures',
+        loadChildren: () =>
+          import('./features/factures/factures.routes').then((r) => r.facturesRoutes),
+      },
+      {
+        path: 'journaux',
+        loadComponent: () =>
+          import('./features/journaux/journaux.component').then((m) => m.JournauxComponent),
+      },
+      {
+        path: 'periode-locks',
+        loadComponent: () =>
+          import('./features/periode-locks/periode-locks.component').then((m) => m.PeriodeLocksComponent),
+      },
+      {
+        path: 'tva',
+        loadComponent: () =>
+          import('./features/tva/tva-declaration/tva-declaration.component').then((m) => m.TvaDeclarationComponent),
+      },
+      {
+        path: 'rapprochement',
+        loadChildren: () =>
+          import('./features/rapprochement/rapprochement.routes').then((r) => r.rapprochementRoutes),
+      },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

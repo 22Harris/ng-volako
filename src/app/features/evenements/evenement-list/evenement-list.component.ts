@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { EvenementService } from '../../../core/services/evenement.service';
+import { ExportService } from '../../../core/services/export.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { EvenementFormComponent } from '../evenement-form/evenement-form.component';
@@ -31,10 +32,19 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
           <h1 class="page-title">Événements</h1>
           <p class="page-sub">Suivi de vos dépenses récurrentes</p>
         </div>
-        <button class="btn-new" (click)="openForm()">
-          <mat-icon>add</mat-icon>
-          Nouvel événement
-        </button>
+        <div class="header-actions">
+          @if (evenements().length > 0) {
+            <div class="export-btns">
+              <button class="btn-export" (click)="exportCsv()" matTooltip="Exporter CSV"><mat-icon>table_view</mat-icon></button>
+              <button class="btn-export" (click)="exportExcel()" matTooltip="Exporter Excel"><mat-icon>grid_on</mat-icon></button>
+              <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
+            </div>
+          }
+          <button class="btn-new" (click)="openForm()">
+            <mat-icon>add</mat-icon>
+            Nouvel événement
+          </button>
+        </div>
       </div>
 
       <!-- ── KPI ── -->
@@ -342,6 +352,17 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
     .empty-state h3 { font-size: 18px; font-weight: 800; color: #0d1b2a; margin: 0; }
     .empty-state p  { font-size: 14px; color: #90a4ae; margin: 0; }
 
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .export-btns { display: flex; gap: 4px; }
+    .btn-export {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: white; cursor: pointer; color: #546e7a; transition: all .15s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      &:hover { border-color: #90caf9; background: #e3f2fd; color: #1565c0; }
+      &.pdf:hover { border-color: #ef9a9a; background: #fde8e8; color: #c62828; }
+    }
+
     @media (max-width: 1100px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 700px)  {
       .cards-grid { grid-template-columns: 1fr; }
@@ -350,9 +371,10 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
   `],
 })
 export class EvenementListComponent implements OnInit {
-  private readonly service   = inject(EvenementService);
-  private readonly alert     = inject(AlertService);
-  private readonly dialog    = inject(MatDialog);
+  private readonly service    = inject(EvenementService);
+  private readonly exportSvc  = inject(ExportService);
+  private readonly alert      = inject(AlertService);
+  private readonly dialog     = inject(MatDialog);
 
   evenements = signal<Evenement[]>([]);
   activeCategorie = signal<EvenementCategorie | null>(null);
@@ -385,6 +407,21 @@ export class EvenementListComponent implements OnInit {
   private load(): void {
     this.service.getAll().subscribe(list => this.evenements.set(list));
   }
+
+  private _toExportRow(ev: Evenement) {
+    return {
+      titre: ev.titre,
+      categorie: this.catConfig[ev.categorie].label,
+      montant: ev.montant,
+      dateEcheance: ev.dateEcheance,
+      recurrence: this.recurrenceConfig[ev.recurrence].label,
+      statut: this.statutConfig[ev.statut].label,
+    };
+  }
+
+  exportCsv(): void   { this.exportSvc.csvEvenements(this.filtered().map(e => this._toExportRow(e))); }
+  exportExcel(): void { this.exportSvc.excelEvenements(this.filtered().map(e => this._toExportRow(e))); }
+  exportPdf(): void   { this.exportSvc.pdfEvenements(this.filtered().map(e => this._toExportRow(e))); }
 
   openForm(ev?: Evenement): void {
     const ref = this.dialog.open(EvenementFormComponent, {

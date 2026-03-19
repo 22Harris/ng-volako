@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { AccountService } from '../../../core/services/account.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
+import { ExportService } from '../../../core/services/export.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AccountFormComponent } from '../account-form/account-form.component';
 import { Account } from '../../../core/models/account.model';
@@ -37,10 +38,25 @@ const CLASS_LABELS: Record<number, string> = {
           <h1 class="page-title">Comptes</h1>
           <p class="page-sub">{{ filteredAccounts().length }} compte(s) · Plan comptable</p>
         </div>
-        <button class="btn-new" (click)="openDialog()">
-          <mat-icon>add</mat-icon>
-          Nouveau compte
-        </button>
+        <div class="header-actions">
+          @if (accounts().length === 0 || pcgLoading()) {
+            <button class="btn-pcg" (click)="initPcg()" [disabled]="pcgLoading()">
+              <mat-icon>auto_fix_high</mat-icon>
+              {{ pcgLoading() ? 'Initialisation…' : 'Init PCG' }}
+            </button>
+          }
+          @if (filteredAccounts().length > 0) {
+            <div class="export-btns">
+              <button class="btn-export" (click)="exportCsv()" matTooltip="Exporter CSV"><mat-icon>table_view</mat-icon></button>
+              <button class="btn-export" (click)="exportExcel()" matTooltip="Exporter Excel"><mat-icon>grid_on</mat-icon></button>
+              <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
+            </div>
+          }
+          <button class="btn-new" (click)="openDialog()">
+            <mat-icon>add</mat-icon>
+            Nouveau compte
+          </button>
+        </div>
       </div>
 
       <!-- ── Filtres ── -->
@@ -100,6 +116,9 @@ const CLASS_LABELS: Record<number, string> = {
               <th mat-header-cell *matHeaderCellDef>Nom</th>
               <td mat-cell *matCellDef="let a">
                 <a [routerLink]="['/accounts', a.id]" class="entry-link">{{ a.name }}</a>
+                @if (a.isSystem) {
+                  <span class="pcg-badge" matTooltip="Compte PCG système">PCG</span>
+                }
               </td>
             </ng-container>
 
@@ -137,14 +156,21 @@ const CLASS_LABELS: Record<number, string> = {
                   matTooltip="Voir" class="action-btn">
                   <mat-icon>visibility</mat-icon>
                 </button>
-                <button mat-icon-button matTooltip="Modifier"
-                  class="action-btn edit" (click)="$event.stopPropagation(); openDialog(a)">
-                  <mat-icon>edit</mat-icon>
-                </button>
-                <button mat-icon-button matTooltip="Supprimer"
-                  class="action-btn del" (click)="$event.stopPropagation(); confirmDelete(a)">
-                  <mat-icon>delete</mat-icon>
-                </button>
+                @if (a.isSystem) {
+                  <button mat-icon-button class="action-btn system-lock"
+                    matTooltip="Compte système — lecture seule" disabled>
+                    <mat-icon>lock</mat-icon>
+                  </button>
+                } @else {
+                  <button mat-icon-button matTooltip="Modifier"
+                    class="action-btn edit" (click)="$event.stopPropagation(); openDialog(a)">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button mat-icon-button matTooltip="Supprimer"
+                    class="action-btn del" (click)="$event.stopPropagation(); confirmDelete(a)">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                }
               </td>
             </ng-container>
 
@@ -180,6 +206,23 @@ const CLASS_LABELS: Record<number, string> = {
     }
     .page-title { font-size: 26px; font-weight: 800; color: #0d1b2a; margin: 0 0 4px; }
     .page-sub   { font-size: 13px; color: #78909c; margin: 0; }
+
+    .header-actions {
+      display: flex; gap: 10px; align-items: center;
+    }
+
+    .btn-pcg {
+      display: flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 22px; border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #00796b 0%, #004d40 100%);
+      color: white; font-size: 14px; font-weight: 700; letter-spacing: .3px;
+      box-shadow: 0 4px 14px rgba(0,121,107,.4), inset 0 1px 0 rgba(255,255,255,.15);
+      transition: box-shadow .2s, transform .15s, opacity .2s;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+      &:hover:not([disabled]) { box-shadow: 0 8px 24px rgba(0,121,107,.6); transform: translateY(-1px); }
+      &:active { transform: translateY(0); }
+      &[disabled] { opacity: .6; cursor: not-allowed; }
+    }
 
     .btn-new {
       display: flex; align-items: center; gap: 8px;
@@ -261,6 +304,13 @@ const CLASS_LABELS: Record<number, string> = {
       border-radius: 6px; font-size: 12px; font-weight: 700; font-family: monospace;
     }
     .entry-link { color: #1565c0; text-decoration: none; font-weight: 500; &:hover { text-decoration: underline; } }
+    .pcg-badge {
+      display: inline-flex; align-items: center; margin-left: 6px;
+      padding: 1px 6px; border-radius: 4px;
+      background: #e8f5e9; color: #2e7d32;
+      font-size: 10px; font-weight: 700; letter-spacing: .4px;
+      vertical-align: middle;
+    }
 
     .class-badge {
       display: inline-flex; align-items: center; justify-content: center;
@@ -293,6 +343,7 @@ const CLASS_LABELS: Record<number, string> = {
     .action-btn  { opacity: .55; transition: opacity .15s; &:hover { opacity: 1; } }
     .action-btn.edit { color: #1565c0 !important; }
     .action-btn.del  { color: #c62828 !important; }
+    .action-btn.system-lock { color: #b0bec5 !important; opacity: .5; cursor: default; }
 
     .empty-state {
       text-align: center; padding: 48px 24px; color: #90a4ae;
@@ -300,15 +351,27 @@ const CLASS_LABELS: Record<number, string> = {
       mat-icon { font-size: 48px; width: 48px; height: 48px; opacity: .4; }
       p { margin: 0; font-size: 14px; }
     }
+
+    .export-btns { display: flex; gap: 4px; }
+    .btn-export {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: white; cursor: pointer; color: #546e7a; transition: all .15s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      &:hover { border-color: #90caf9; background: #e3f2fd; color: #1565c0; }
+      &.pdf:hover { border-color: #ef9a9a; background: #fde8e8; color: #c62828; }
+    }
   `]
 })
 export class AccountListComponent implements OnInit {
   private readonly accountService = inject(AccountService);
   private readonly alertService   = inject(AlertService);
+  private readonly exportSvc      = inject(ExportService);
   private readonly dialog         = inject(MatDialog);
   private readonly fb             = inject(FormBuilder);
 
-  accounts  = signal<Account[]>([]);
+  accounts    = signal<Account[]>([]);
+  pcgLoading  = signal(false);
   classLabels = CLASS_LABELS;
   displayedColumns = ['code', 'name', 'class', 'balance', 'lines', 'actions'];
 
@@ -367,6 +430,36 @@ export class AccountListComponent implements OnInit {
         this.accountService.getAll().subscribe(list => this.accounts.set(list));
       }
     });
+  }
+
+  initPcg(): void {
+    this.pcgLoading.set(true);
+    this.accountService.initPcg().subscribe({
+      next: (res) => {
+        this.pcgLoading.set(false);
+        const msg = res.created > 0
+          ? `${res.created} compte(s) ajouté(s), ${res.skipped} déjà existant(s)`
+          : `Tous les comptes PCG existent déjà (${res.skipped})`;
+        this.alertService.success(msg);
+        this.accountService.getAll().subscribe(list => this.accounts.set(list));
+      },
+      error: () => {
+        this.pcgLoading.set(false);
+        this.alertService.error('Erreur lors de l\'initialisation du PCG');
+      },
+    });
+  }
+
+  exportCsv(): void {
+    this.exportSvc.csvAccounts(this.filteredAccounts().map(a => ({ code: a.code, name: a.name, class: a.class })));
+  }
+
+  exportExcel(): void {
+    this.exportSvc.excelAccounts(this.filteredAccounts().map(a => ({ code: a.code, name: a.name, class: a.class, balance: this.getBalance(a) })));
+  }
+
+  exportPdf(): void {
+    this.exportSvc.pdfAccounts(this.filteredAccounts().map(a => ({ code: a.code, name: a.name, class: a.class, balance: this.getBalance(a) })));
   }
 
   confirmDelete(account: Account): void {

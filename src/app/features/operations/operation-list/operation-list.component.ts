@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { AppDateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { OperationService } from '../../../core/services/operation.service';
+import { ExportService } from '../../../core/services/export.service';
 import { Operation, OperationType } from '../../../core/models/operation.model';
 import { OperationFormComponent } from '../operation-form/operation-form.component';
 import { OperationViewDialogComponent } from '../operation-view-dialog/operation-view-dialog.component';
@@ -35,10 +36,19 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
           <h1 class="page-title">Opérations</h1>
           <p class="page-sub">{{ filtered().length }} opération(s)</p>
         </div>
-        <button class="btn-new" (click)="openForm()">
-          <mat-icon>add</mat-icon>
-          Nouvelle opération
-        </button>
+        <div class="header-actions">
+          @if (filtered().length > 0) {
+            <div class="export-btns">
+              <button class="btn-export" (click)="exportCsv()" matTooltip="Exporter CSV"><mat-icon>table_view</mat-icon></button>
+              <button class="btn-export" (click)="exportExcel()" matTooltip="Exporter Excel"><mat-icon>grid_on</mat-icon></button>
+              <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
+            </div>
+          }
+          <button class="btn-new" (click)="openForm()">
+            <mat-icon>add</mat-icon>
+            Nouvelle opération
+          </button>
+        </div>
       </div>
 
       <!-- ── Filtres ── -->
@@ -601,6 +611,17 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
       span { font-size: 13px; }
     }
 
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .export-btns { display: flex; gap: 4px; }
+    .btn-export {
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+      background: white; cursor: pointer; color: #546e7a; transition: all .15s;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; }
+      &:hover { border-color: #90caf9; background: #e3f2fd; color: #1565c0; }
+      &.pdf:hover { border-color: #ef9a9a; background: #fde8e8; color: #c62828; }
+    }
+
     @media (max-width: 900px) {
       .main-area { flex-direction: column; }
       .detail-panel { width: 100%; min-width: 0; }
@@ -608,9 +629,10 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
   `]
 })
 export class OperationListComponent implements OnInit {
-  private readonly opService = inject(OperationService);
-  private readonly fb        = inject(FormBuilder);
-  private readonly dialog    = inject(MatDialog);
+  private readonly opService  = inject(OperationService);
+  private readonly exportSvc  = inject(ExportService);
+  private readonly fb         = inject(FormBuilder);
+  private readonly dialog     = inject(MatDialog);
 
   allOperations = signal<Operation[]>([]);
   filtered      = signal<Operation[]>([]);
@@ -727,6 +749,18 @@ export class OperationListComponent implements OnInit {
   updatePage(): void {
     const start = this.pageIndex * this.pageSize;
     this.paginated.set(this.filtered().slice(start, start + this.pageSize));
+  }
+
+  exportCsv(): void {
+    this.exportSvc.csvOperations(this.filtered().map(o => ({ date: o.date, type: o.type, label: o.label, amount: o.amount })));
+  }
+
+  exportExcel(): void {
+    this.exportSvc.excelOperations(this.filtered().map(o => ({ date: o.date, typeLabel: this.typeConfig[o.type]?.label ?? o.type, label: o.label, amount: o.amount })));
+  }
+
+  exportPdf(): void {
+    this.exportSvc.pdfOperations(this.filtered().map(o => ({ date: o.date, typeLabel: this.typeConfig[o.type]?.label ?? o.type, label: o.label, amount: o.amount })));
   }
 
   min(a: number, b: number): number { return Math.min(a, b); }

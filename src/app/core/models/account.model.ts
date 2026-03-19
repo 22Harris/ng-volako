@@ -5,6 +5,7 @@ export interface Account {
   code: string;
   name: string;
   class: number;
+  isSystem?: boolean;
   journalLines?: JournalLine[];
 }
 
