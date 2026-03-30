@@ -67,91 +67,140 @@ interface SearchResult {
 
         <!-- Navigation -->
         <nav class="sidebar-nav">
+
+          <!-- Dashboard -->
           <a class="nav-item" routerLink="/dashboard" routerLinkActive="active"
             [matTooltip]="collapsed() ? 'Dashboard' : ''" matTooltipPosition="right">
             <mat-icon class="nav-icon">dashboard</mat-icon>
             @if (!collapsed()) { <span class="nav-label">Dashboard</span> }
           </a>
-          <a class="nav-item" routerLink="/operations" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Opérations' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">swap_vert</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Opérations</span> }
-          </a>
-          <a class="nav-item" routerLink="/journal" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Journal' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">menu_book</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Journal</span> }
-          </a>
-          <a class="nav-item" routerLink="/journaux" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Journaux' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">import_contacts</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Journaux</span> }
-          </a>
-          <a class="nav-item" routerLink="/periode-locks" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Verrouillage' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">lock_clock</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Verrouillage</span> }
-          </a>
-          <a class="nav-item" routerLink="/accounts" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Comptes' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">account_balance_wallet</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Comptes</span> }
-          </a>
-          <a class="nav-item" routerLink="/evenements" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Événements' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">calendar_month</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Événements</span> }
-          </a>
-          <a class="nav-item" routerLink="/stats" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Statistiques' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">bar_chart</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Statistiques</span> }
-          </a>
-          <a class="nav-item" routerLink="/rapports" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Rapports' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">description</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Rapports</span> }
-          </a>
-          <a class="nav-item" routerLink="/tva" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Déclaration TVA' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">receipt</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">TVA / CA3</span> }
-          </a>
-          <a class="nav-item" routerLink="/rapprochement" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Rapprochement bancaire' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">account_balance</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Rapprochement</span> }
-          </a>
 
-          <a class="nav-item" routerLink="/tiers" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Tiers' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">people</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Tiers</span> }
-          </a>
-          <a class="nav-item" routerLink="/factures" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Factures' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">receipt_long</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Factures</span> }
-          </a>
+          @if (!collapsed()) {
 
-          @if (!collapsed()) { <div class="nav-section-label">Planification</div> }
-          @else { <div class="nav-divider"></div> }
+            <!-- ── Groupe Comptabilité ── -->
+            <button class="nav-group-header" (click)="toggleGroup('compta')"
+              [class.open]="openGroups()['compta']">
+              <mat-icon class="nav-icon">menu_book</mat-icon>
+              <span class="nav-label">Comptabilité</span>
+              <mat-icon class="nav-chevron">{{ openGroups()['compta'] ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+            <div class="nav-group-items" [class.open]="openGroups()['compta']"><div>
+              <a class="nav-item nav-sub-item" routerLink="/operations" routerLinkActive="active">
+                <mat-icon class="nav-icon">swap_vert</mat-icon>
+                <span class="nav-label">Opérations</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/journal" routerLinkActive="active">
+                <mat-icon class="nav-icon">receipt_long</mat-icon>
+                <span class="nav-label">Journal</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/journaux" routerLinkActive="active">
+                <mat-icon class="nav-icon">import_contacts</mat-icon>
+                <span class="nav-label">Journaux</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/periode-locks" routerLinkActive="active">
+                <mat-icon class="nav-icon">lock_clock</mat-icon>
+                <span class="nav-label">Verrouillage</span>
+              </a>
+            </div></div>
 
-          <a class="nav-item" routerLink="/budget" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Budget' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">account_balance</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Budget</span> }
-          </a>
-          <a class="nav-item" routerLink="/objectifs" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Objectifs' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">flag</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Objectifs</span> }
-          </a>
-          <a class="nav-item nav-item-alert" routerLink="/alertes" routerLinkActive="active"
-            [matTooltip]="collapsed() ? 'Alertes' : ''" matTooltipPosition="right">
-            <mat-icon class="nav-icon">notifications_active</mat-icon>
-            @if (!collapsed()) { <span class="nav-label">Alertes</span> }
-          </a>
+            <!-- ── Groupe Tiers & Facturation ── -->
+            <button class="nav-group-header" (click)="toggleGroup('tiers')"
+              [class.open]="openGroups()['tiers']">
+              <mat-icon class="nav-icon">people</mat-icon>
+              <span class="nav-label">Tiers & Facturation</span>
+              <mat-icon class="nav-chevron">{{ openGroups()['tiers'] ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+            <div class="nav-group-items" [class.open]="openGroups()['tiers']"><div>
+              <a class="nav-item nav-sub-item" routerLink="/accounts" routerLinkActive="active">
+                <mat-icon class="nav-icon">account_balance_wallet</mat-icon>
+                <span class="nav-label">Comptes</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/tiers" routerLinkActive="active">
+                <mat-icon class="nav-icon">contacts</mat-icon>
+                <span class="nav-label">Tiers</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/factures" routerLinkActive="active">
+                <mat-icon class="nav-icon">description</mat-icon>
+                <span class="nav-label">Factures</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/rapprochement" routerLinkActive="active">
+                <mat-icon class="nav-icon">account_balance</mat-icon>
+                <span class="nav-label">Rapprochement</span>
+              </a>
+            </div></div>
+
+            <!-- ── Groupe Analyse ── -->
+            <button class="nav-group-header" (click)="toggleGroup('analyse')"
+              [class.open]="openGroups()['analyse']">
+              <mat-icon class="nav-icon">analytics</mat-icon>
+              <span class="nav-label">Analyse</span>
+              <mat-icon class="nav-chevron">{{ openGroups()['analyse'] ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+            <div class="nav-group-items" [class.open]="openGroups()['analyse']"><div>
+              <a class="nav-item nav-sub-item" routerLink="/stats" routerLinkActive="active">
+                <mat-icon class="nav-icon">bar_chart</mat-icon>
+                <span class="nav-label">Statistiques</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/rapports" routerLinkActive="active">
+                <mat-icon class="nav-icon">summarize</mat-icon>
+                <span class="nav-label">Rapports</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/tva" routerLinkActive="active">
+                <mat-icon class="nav-icon">receipt</mat-icon>
+                <span class="nav-label">TVA / CA3</span>
+              </a>
+            </div></div>
+
+            <!-- ── Groupe Planification ── -->
+            <button class="nav-group-header" (click)="toggleGroup('planif')"
+              [class.open]="openGroups()['planif']">
+              <mat-icon class="nav-icon">event_note</mat-icon>
+              <span class="nav-label">Planification</span>
+              <mat-icon class="nav-chevron">{{ openGroups()['planif'] ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
+            <div class="nav-group-items" [class.open]="openGroups()['planif']"><div>
+              <a class="nav-item nav-sub-item" routerLink="/evenements" routerLinkActive="active">
+                <mat-icon class="nav-icon">calendar_month</mat-icon>
+                <span class="nav-label">Événements</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/budget" routerLinkActive="active">
+                <mat-icon class="nav-icon">savings</mat-icon>
+                <span class="nav-label">Budget</span>
+              </a>
+              <a class="nav-item nav-sub-item" routerLink="/objectifs" routerLinkActive="active">
+                <mat-icon class="nav-icon">flag</mat-icon>
+                <span class="nav-label">Objectifs</span>
+              </a>
+              <a class="nav-item nav-sub-item nav-item-alert" routerLink="/alertes" routerLinkActive="active">
+                <mat-icon class="nav-icon">notifications_active</mat-icon>
+                <span class="nav-label">Alertes</span>
+              </a>
+            </div></div>
+
+          } @else {
+
+            <!-- ── Mode réduit : icônes plates ── -->
+            <a class="nav-item" routerLink="/operations" routerLinkActive="active" matTooltip="Opérations" matTooltipPosition="right"><mat-icon class="nav-icon">swap_vert</mat-icon></a>
+            <a class="nav-item" routerLink="/journal" routerLinkActive="active" matTooltip="Journal" matTooltipPosition="right"><mat-icon class="nav-icon">receipt_long</mat-icon></a>
+            <a class="nav-item" routerLink="/journaux" routerLinkActive="active" matTooltip="Journaux" matTooltipPosition="right"><mat-icon class="nav-icon">import_contacts</mat-icon></a>
+            <a class="nav-item" routerLink="/periode-locks" routerLinkActive="active" matTooltip="Verrouillage" matTooltipPosition="right"><mat-icon class="nav-icon">lock_clock</mat-icon></a>
+            <div class="nav-divider"></div>
+            <a class="nav-item" routerLink="/accounts" routerLinkActive="active" matTooltip="Comptes" matTooltipPosition="right"><mat-icon class="nav-icon">account_balance_wallet</mat-icon></a>
+            <a class="nav-item" routerLink="/tiers" routerLinkActive="active" matTooltip="Tiers" matTooltipPosition="right"><mat-icon class="nav-icon">contacts</mat-icon></a>
+            <a class="nav-item" routerLink="/factures" routerLinkActive="active" matTooltip="Factures" matTooltipPosition="right"><mat-icon class="nav-icon">description</mat-icon></a>
+            <a class="nav-item" routerLink="/rapprochement" routerLinkActive="active" matTooltip="Rapprochement" matTooltipPosition="right"><mat-icon class="nav-icon">account_balance</mat-icon></a>
+            <div class="nav-divider"></div>
+            <a class="nav-item" routerLink="/stats" routerLinkActive="active" matTooltip="Statistiques" matTooltipPosition="right"><mat-icon class="nav-icon">bar_chart</mat-icon></a>
+            <a class="nav-item" routerLink="/rapports" routerLinkActive="active" matTooltip="Rapports" matTooltipPosition="right"><mat-icon class="nav-icon">summarize</mat-icon></a>
+            <a class="nav-item" routerLink="/tva" routerLinkActive="active" matTooltip="TVA / CA3" matTooltipPosition="right"><mat-icon class="nav-icon">receipt</mat-icon></a>
+            <div class="nav-divider"></div>
+            <a class="nav-item" routerLink="/evenements" routerLinkActive="active" matTooltip="Événements" matTooltipPosition="right"><mat-icon class="nav-icon">calendar_month</mat-icon></a>
+            <a class="nav-item" routerLink="/budget" routerLinkActive="active" matTooltip="Budget" matTooltipPosition="right"><mat-icon class="nav-icon">savings</mat-icon></a>
+            <a class="nav-item" routerLink="/objectifs" routerLinkActive="active" matTooltip="Objectifs" matTooltipPosition="right"><mat-icon class="nav-icon">flag</mat-icon></a>
+            <a class="nav-item nav-item-alert" routerLink="/alertes" routerLinkActive="active" matTooltip="Alertes" matTooltipPosition="right"><mat-icon class="nav-icon">notifications_active</mat-icon></a>
+
+          }
+
         </nav>
 
         <div class="sidebar-spacer"></div>
@@ -355,6 +404,47 @@ interface SearchResult {
       border-left-color: #ef5350 !important;
     }
 
+    /* ── Groups ── */
+    .nav-group-header {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: 9px 12px;
+      border: none; border-radius: 10px; background: transparent;
+      color: rgba(255,255,255,.55); font-size: 14px; font-weight: 600;
+      cursor: pointer; text-align: left; white-space: nowrap;
+      border-left: 3px solid transparent;
+      transition: background .15s, color .15s;
+      &:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.88); }
+      &.open { color: rgba(255,255,255,.88); }
+    }
+    .nav-chevron {
+      font-size: 18px; width: 18px; height: 18px;
+      margin-left: auto; flex-shrink: 0; opacity: .55;
+      transition: transform .2s;
+    }
+    .nav-group-header.open .nav-chevron { opacity: .88; }
+
+    .nav-group-items {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows .22s ease;
+      overflow: hidden;
+      &.open { grid-template-rows: 1fr; }
+    }
+    .nav-group-items > div { min-height: 0; }
+
+    .nav-sub-item {
+      padding-left: 28px !important;
+      font-size: 13px !important;
+      font-weight: 400 !important;
+      color: rgba(255,255,255,.45) !important;
+      &:hover { color: rgba(255,255,255,.82) !important; }
+      &.active {
+        color: #90caf9 !important;
+        background: rgba(21,101,192,.32) !important;
+        border-left-color: #42a5f5 !important;
+      }
+    }
+
     /* ── Spacer ── */
     .sidebar-spacer { flex: 1; }
 
@@ -531,6 +621,17 @@ export class AppShellComponent implements OnInit {
   private readonly evenementService = inject(EvenementService);
 
   collapsed = signal(false);
+
+  openGroups = signal<Record<string, boolean>>({
+    compta: true,
+    tiers: false,
+    analyse: false,
+    planif: false,
+  });
+
+  toggleGroup(group: string): void {
+    this.openGroups.update(g => ({ ...g, [group]: !g[group] }));
+  }
 
   // Search state
   searchQuery   = '';

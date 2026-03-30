@@ -32,6 +32,48 @@ export interface GrandLivreResponse {
   solde: number;
 }
 
+export interface BilanPoste {
+  code: string;
+  name: string;
+  solde: number;
+}
+
+export interface BilanReport {
+  exercice: number;
+  actif: {
+    immobilisations: BilanPoste[];
+    stocks: BilanPoste[];
+    creances: BilanPoste[];
+    disponibilites: BilanPoste[];
+    autresActif: BilanPoste[];
+    total: number;
+  };
+  passif: {
+    capitauxPropres: BilanPoste[];
+    dettesFinancieres: BilanPoste[];
+    dettesFournisseurs: BilanPoste[];
+    autresDettes: BilanPoste[];
+    total: number;
+  };
+  resultatExercice: number;
+  equilibre: boolean;
+}
+
+export interface CompteResultatPoste {
+  code: string;
+  name: string;
+  montant: number;
+}
+
+export interface CompteResultatReport {
+  exercice: number;
+  charges: CompteResultatPoste[];
+  produits: CompteResultatPoste[];
+  totalCharges: number;
+  totalProduits: number;
+  resultat: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RapportsService {
   private readonly api = `${environment.apiUrl}/rapports`;
@@ -47,5 +89,13 @@ export class RapportsService {
     if (dateFrom) params['dateFrom'] = dateFrom;
     if (dateTo) params['dateTo'] = dateTo;
     return this.http.get<GrandLivreResponse>(`${this.api}/grand-livre/${accountId}`, { params });
+  }
+
+  getBilan(exercice: number): Observable<BilanReport> {
+    return this.http.get<BilanReport>(`${this.api}/bilan`, { params: { exercice: String(exercice) } });
+  }
+
+  getCompteDeResultat(exercice: number): Observable<CompteResultatReport> {
+    return this.http.get<CompteResultatReport>(`${this.api}/compte-de-resultat`, { params: { exercice: String(exercice) } });
   }
 }

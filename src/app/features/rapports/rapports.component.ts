@@ -9,7 +9,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AccountService } from '../../core/services/account.service';
-import { RapportsService, BalanceLine, GrandLivreResponse } from '../../core/services/rapports.service';
+import {
+  RapportsService, BalanceLine, GrandLivreResponse, BilanReport, CompteResultatReport,
+} from '../../core/services/rapports.service';
 import { ExportService } from '../../core/services/export.service';
 import { Account } from '../../core/models/account.model';
 
@@ -370,9 +372,17 @@ const CLASS_NAMES: Record<number, string> = {
               <h2>Bilan comptable</h2>
               <p>Situation patrimoniale — Actif et Passif</p>
             </div>
+            <mat-form-field appearance="outline" class="exercice-select">
+              <mat-label>Exercice</mat-label>
+              <mat-select [ngModel]="exercice()" (ngModelChange)="onExerciceChange($event)">
+                @for (y of exerciceYears; track y) {
+                  <mat-option [value]="y">{{ y }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
           </div>
 
-          @if (loadingBalance()) {
+          @if (loadingBilan()) {
             <div class="loading">Chargement…</div>
           } @else {
             <div class="bilan-kpi">
@@ -512,9 +522,17 @@ const CLASS_NAMES: Record<number, string> = {
               <h2>Compte de résultat</h2>
               <p>Produits (Cl. 7) vs Charges (Cl. 6) — Résultat de l'exercice</p>
             </div>
+            <mat-form-field appearance="outline" class="exercice-select">
+              <mat-label>Exercice</mat-label>
+              <mat-select [ngModel]="exercice()" (ngModelChange)="onExerciceChange($event)">
+                @for (y of exerciceYears; track y) {
+                  <mat-option [value]="y">{{ y }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
           </div>
 
-          @if (loadingBalance()) {
+          @if (loadingResultat()) {
             <div class="loading">Chargement…</div>
           } @else {
             <div class="resultat-kpi">
@@ -801,6 +819,9 @@ const CLASS_NAMES: Record<number, string> = {
     .cls-7 { background: #e8f5e9; color: #1b5e20; }
     .cls-8 { background: #f3e5f5; color: #4a148c; }
 
+    /* Exercice selector */
+    .exercice-select { width: 110px; margin-left: auto; }
+
     /* Bilan */
     .bilan-kpi { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
     .bk-item {
@@ -938,13 +959,20 @@ export class RapportsComponent implements OnInit {
 
   readonly today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  activeTab      = signal<ReportTab>('balance');
-  loadingBalance = signal(false);
-  loadingGl      = signal(false);
+  readonly exerciceYears = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+
+  activeTab       = signal<ReportTab>('balance');
+  loadingBalance  = signal(false);
+  loadingGl       = signal(false);
+  loadingBilan    = signal(false);
+  loadingResultat = signal(false);
 
   balanceLines = signal<BalanceLine[]>([]);
   accounts     = signal<Account[]>([]);
   grandLivre   = signal<GrandLivreResponse | null>(null);
+  bilanData    = signal<BilanReport | null>(null);
+  resultatData = signal<CompteResultatReport | null>(null);
+  exercice     = signal(new Date().getFullYear());
 
   // Grand livre filters
   selectedAccountId: number | null = null;
@@ -954,13 +982,21 @@ export class RapportsComponent implements OnInit {
   ngOnInit(): void {
     this.fetchBalance();
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
+    this.fetchBilan();
+    this.fetchResultat();
   }
 
   setTab(tab: ReportTab): void {
     this.activeTab.set(tab);
-    if (tab === 'balance' || tab === 'bilan' || tab === 'resultat') {
-      if (this.balanceLines().length === 0) this.fetchBalance();
-    }
+    if (tab === 'balance' && this.balanceLines().length === 0) this.fetchBalance();
+    if (tab === 'bilan'   && !this.bilanData())    this.fetchBilan();
+    if (tab === 'resultat' && !this.resultatData()) this.fetchResultat();
+  }
+
+  onExerciceChange(year: number): void {
+    this.exercice.set(year);
+    this.fetchBilan();
+    this.fetchResultat();
   }
 
   print(): void { globalThis.print(); }
@@ -990,6 +1026,24 @@ export class RapportsComponent implements OnInit {
     this.rapportsService.getBalance().subscribe({
       next: (lines) => { this.balanceLines.set(lines); this.loadingBalance.set(false); },
       error: ()      => { this.loadingBalance.set(false); },
+    });
+  }
+
+  private fetchBilan(): void {
+    this.loadingBilan.set(true);
+    this.bilanData.set(null);
+    this.rapportsService.getBilan(this.exercice()).subscribe({
+      next: (d) => { this.bilanData.set(d); this.loadingBilan.set(false); },
+      error: ()  => { this.loadingBilan.set(false); },
+    });
+  }
+
+  private fetchResultat(): void {
+    this.loadingResultat.set(true);
+    this.resultatData.set(null);
+    this.rapportsService.getCompteDeResultat(this.exercice()).subscribe({
+      next: (d) => { this.resultatData.set(d); this.loadingResultat.set(false); },
+      error: ()  => { this.loadingResultat.set(false); },
     });
   }
 
@@ -1036,72 +1090,62 @@ export class RapportsComponent implements OnInit {
   totalSoldesDebiteurs  = computed(() => this.balanceLines().filter(l => this.solde(l) > 0).reduce((s, l) => s + this.solde(l), 0));
   totalSoldesCrediteurs = computed(() => this.balanceLines().filter(l => this.solde(l) < 0).reduce((s, l) => s - this.solde(l), 0));
 
-  /* ── BILAN computed ── */
-  private byClass(cls: number): BalanceLine[] {
-    return this.balanceLines().filter(l => l.account_class === cls);
-  }
-
+  /* ── BILAN computed (depuis l'API, filtrée par exercice) ── */
   bilanActifImmobilise = computed<BilanLine[]>(() =>
-    this.byClass(2)
-      .map(l => ({ code: l.code, label: l.name, montant: this.solde(l) }))
-      .filter(l => l.montant > 0)
+    (this.bilanData()?.actif.immobilisations ?? []).map(p => ({ code: p.code, label: p.name, montant: p.solde }))
   );
-  totalActifImmobilise = computed(() => this.bilanActifImmobilise().reduce((s, l) => s + l.montant, 0));
+  totalActifImmobilise = computed(() =>
+    (this.bilanData()?.actif.immobilisations ?? []).reduce((s, p) => s + p.solde, 0)
+  );
 
   bilanActifCirculant = computed<BilanLine[]>(() => {
-    const lines: BilanLine[] = [];
-    [3, 4, 5].forEach(cls => {
-      this.byClass(cls).forEach(l => {
-        const m = this.solde(l);
-        if (m > 0) lines.push({ code: l.code, label: l.name, montant: m });
-      });
-    });
-    return lines;
+    const a = this.bilanData()?.actif;
+    if (!a) return [];
+    return [...a.stocks, ...a.creances, ...a.disponibilites, ...a.autresActif]
+      .map(p => ({ code: p.code, label: p.name, montant: p.solde }));
   });
-  totalActifCirculant = computed(() => this.bilanActifCirculant().reduce((s, l) => s + l.montant, 0));
-  totalActif          = computed(() => this.totalActifImmobilise() + this.totalActifCirculant());
+  totalActifCirculant = computed(() => {
+    const a = this.bilanData()?.actif;
+    if (!a) return 0;
+    return [...a.stocks, ...a.creances, ...a.disponibilites, ...a.autresActif].reduce((s, p) => s + p.solde, 0);
+  });
+  totalActif = computed(() => this.bilanData()?.actif.total ?? 0);
 
   bilanPassifCapitaux = computed<BilanLine[]>(() =>
-    this.byClass(1)
-      .map(l => ({ code: l.code, label: l.name, montant: -this.solde(l) }))
-      .filter(l => l.montant > 0)
+    (this.bilanData()?.passif.capitauxPropres ?? []).map(p => ({ code: p.code, label: p.name, montant: p.solde }))
   );
-  resultatNet          = computed(() =>
-    this.byClass(7).reduce((s, l) => s + l.totalCredit, 0) -
-    this.byClass(6).reduce((s, l) => s + l.totalDebit,  0)
+  resultatNet = computed(() =>
+    this.bilanData()?.resultatExercice ?? this.resultatData()?.resultat ?? 0
   );
   totalCapitauxPropres = computed(() =>
-    this.bilanPassifCapitaux().reduce((s, l) => s + l.montant, 0) + this.resultatNet()
+    (this.bilanData()?.passif.capitauxPropres ?? []).reduce((s, p) => s + p.solde, 0) + this.resultatNet()
   );
   bilanPassifDettes = computed<BilanLine[]>(() => {
-    const lines: BilanLine[] = [];
-    [4, 5].forEach(cls => {
-      this.byClass(cls).forEach(l => {
-        const m = -this.solde(l);
-        if (m > 0) lines.push({ code: l.code, label: l.name, montant: m });
-      });
-    });
-    return lines;
+    const p = this.bilanData()?.passif;
+    if (!p) return [];
+    return [...p.dettesFinancieres, ...p.dettesFournisseurs, ...p.autresDettes]
+      .map(pp => ({ code: pp.code, label: pp.name, montant: pp.solde }));
   });
-  totalDettes  = computed(() => this.bilanPassifDettes().reduce((s, l) => s + l.montant, 0));
-  totalPassif  = computed(() => this.totalCapitauxPropres() + this.totalDettes());
+  totalDettes = computed(() => {
+    const p = this.bilanData()?.passif;
+    if (!p) return 0;
+    return [...p.dettesFinancieres, ...p.dettesFournisseurs, ...p.autresDettes].reduce((s, pp) => s + pp.solde, 0);
+  });
+  totalPassif = computed(() => {
+    const b = this.bilanData();
+    return b ? b.passif.total + b.resultatExercice : 0;
+  });
 
-  /* ── COMPTE DE RÉSULTAT computed ── */
+  /* ── COMPTE DE RÉSULTAT computed (depuis l'API, filtrée par exercice) ── */
   produitsLines = computed<ResultatLine[]>(() =>
-    this.byClass(7)
-      .map(l => ({ code: l.code, label: l.name, montant: l.totalCredit }))
-      .filter(l => l.montant > 0)
-      .sort((a, b) => a.code.localeCompare(b.code))
+    (this.resultatData()?.produits ?? []).map(p => ({ code: p.code, label: p.name, montant: p.montant }))
   );
   chargesLines = computed<ResultatLine[]>(() =>
-    this.byClass(6)
-      .map(l => ({ code: l.code, label: l.name, montant: l.totalDebit }))
-      .filter(l => l.montant > 0)
-      .sort((a, b) => a.code.localeCompare(b.code))
+    (this.resultatData()?.charges ?? []).map(p => ({ code: p.code, label: p.name, montant: p.montant }))
   );
-  totalProduits = computed(() => this.produitsLines().reduce((s, l) => s + l.montant, 0));
-  totalCharges  = computed(() => this.chargesLines().reduce((s, l) => s + l.montant, 0));
-  produitsPct   = computed(() => {
+  totalProduits = computed(() => this.resultatData()?.totalProduits ?? 0);
+  totalCharges  = computed(() => this.resultatData()?.totalCharges  ?? 0);
+  produitsPct = computed(() => {
     const t = this.totalProduits() + this.totalCharges();
     return t > 0 ? Math.round(this.totalProduits() / t * 100) : 50;
   });
