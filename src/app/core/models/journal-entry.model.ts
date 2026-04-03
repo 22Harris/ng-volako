@@ -1,5 +1,7 @@
 import { JournalLine, CreateJournalLineDto } from './journal-line.model';
 
+export type EntryStatus = 'BROUILLON' | 'VALIDE' | 'VERROUILLE';
+
 export interface JournalEntry {
   id: number;
   date: string;         // ISO 8601
@@ -7,6 +9,7 @@ export interface JournalEntry {
   operationId?: number;
   journalId?: number;
   pieceNumber?: string;
+  statut: EntryStatus;
   lines: JournalLine[];
 }
 

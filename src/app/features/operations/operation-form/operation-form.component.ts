@@ -8,6 +8,7 @@ import { OperationService } from '../../../core/services/operation.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { Operation, OperationType } from '../../../core/models/operation.model';
 import { OPERATION_TYPES_BY_CATEGORY, CATEGORY_LABELS, OperationCategory, OPERATION_TYPE_CONFIG } from '../../../core/utils/operation-type.utils';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-operation-form',
@@ -84,7 +85,7 @@ import { OPERATION_TYPES_BY_CATEGORY, CATEGORY_LABELS, OperationCategory, OPERAT
 
           <!-- Montant -->
           <div class="field-group">
-            <label class="field-label">Montant (Ar) <span class="req">*</span></label>
+            <label class="field-label">Montant ({{ settings.currencySymbol() }}) <span class="req">*</span></label>
             <div class="field-wrap" [class.has-error]="amountCtrl.invalid && amountCtrl.touched">
               <mat-icon class="fi">payments</mat-icon>
               <input class="fi-input" formControlName="amount" type="number"
@@ -216,6 +217,7 @@ import { OPERATION_TYPES_BY_CATEGORY, CATEGORY_LABELS, OperationCategory, OPERAT
   `]
 })
 export class OperationFormComponent implements OnInit {
+  readonly settings          = inject(SettingsService);
   private readonly fb        = inject(FormBuilder);
   private readonly opService = inject(OperationService);
   private readonly alertSvc  = inject(AlertService);

@@ -13,6 +13,16 @@ import { EvenementService } from '../../../core/services/evenement.service';
 import { Account } from '../../../core/models/account.model';
 import { Operation } from '../../../core/models/operation.model';
 import { Evenement } from '../../../core/models/evenement.model';
+import { Role } from '../../../core/models/auth.model';
+
+const ROLE_LABELS: Record<Role, string> = {
+  ADMIN:          'Administrateur',
+  DAF:            'DAF',
+  CHEF_COMPTABLE: 'Chef comptable',
+  COMPTABLE:      'Comptable',
+  ASSISTANT:      'Assistant',
+  AUDITEUR:       'Auditeur',
+};
 
 interface SearchResult {
   type: 'compte' | 'operation' | 'evenement';
@@ -130,6 +140,7 @@ interface SearchResult {
             </div></div>
 
             <!-- ── Groupe Analyse ── -->
+            @if (canSeeRapports()) {
             <button class="nav-group-header" (click)="toggleGroup('analyse')"
               [class.open]="openGroups()['analyse']">
               <mat-icon class="nav-icon">analytics</mat-icon>
@@ -149,7 +160,12 @@ interface SearchResult {
                 <mat-icon class="nav-icon">receipt</mat-icon>
                 <span class="nav-label">TVA / CA3</span>
               </a>
+              <a class="nav-item nav-sub-item" routerLink="/taux-change" routerLinkActive="active">
+                <mat-icon class="nav-icon">currency_exchange</mat-icon>
+                <span class="nav-label">Taux de change</span>
+              </a>
             </div></div>
+            }
 
             <!-- ── Groupe Planification ── -->
             <button class="nav-group-header" (click)="toggleGroup('planif')"
@@ -177,6 +193,14 @@ interface SearchResult {
               </a>
             </div></div>
 
+            <!-- ── Admin : Utilisateurs ── -->
+            @if (isAdmin()) {
+              <a class="nav-item nav-item-admin" routerLink="/users" routerLinkActive="active">
+                <mat-icon class="nav-icon">manage_accounts</mat-icon>
+                <span class="nav-label">Utilisateurs</span>
+              </a>
+            }
+
           } @else {
 
             <!-- ── Mode réduit : icônes plates ── -->
@@ -189,15 +213,22 @@ interface SearchResult {
             <a class="nav-item" routerLink="/tiers" routerLinkActive="active" matTooltip="Tiers" matTooltipPosition="right"><mat-icon class="nav-icon">contacts</mat-icon></a>
             <a class="nav-item" routerLink="/factures" routerLinkActive="active" matTooltip="Factures" matTooltipPosition="right"><mat-icon class="nav-icon">description</mat-icon></a>
             <a class="nav-item" routerLink="/rapprochement" routerLinkActive="active" matTooltip="Rapprochement" matTooltipPosition="right"><mat-icon class="nav-icon">account_balance</mat-icon></a>
+            @if (canSeeRapports()) {
             <div class="nav-divider"></div>
             <a class="nav-item" routerLink="/stats" routerLinkActive="active" matTooltip="Statistiques" matTooltipPosition="right"><mat-icon class="nav-icon">bar_chart</mat-icon></a>
             <a class="nav-item" routerLink="/rapports" routerLinkActive="active" matTooltip="Rapports" matTooltipPosition="right"><mat-icon class="nav-icon">summarize</mat-icon></a>
             <a class="nav-item" routerLink="/tva" routerLinkActive="active" matTooltip="TVA / CA3" matTooltipPosition="right"><mat-icon class="nav-icon">receipt</mat-icon></a>
+            <a class="nav-item" routerLink="/taux-change" routerLinkActive="active" matTooltip="Taux de change" matTooltipPosition="right"><mat-icon class="nav-icon">currency_exchange</mat-icon></a>
+            }
             <div class="nav-divider"></div>
             <a class="nav-item" routerLink="/evenements" routerLinkActive="active" matTooltip="Événements" matTooltipPosition="right"><mat-icon class="nav-icon">calendar_month</mat-icon></a>
             <a class="nav-item" routerLink="/budget" routerLinkActive="active" matTooltip="Budget" matTooltipPosition="right"><mat-icon class="nav-icon">savings</mat-icon></a>
             <a class="nav-item" routerLink="/objectifs" routerLinkActive="active" matTooltip="Objectifs" matTooltipPosition="right"><mat-icon class="nav-icon">flag</mat-icon></a>
             <a class="nav-item nav-item-alert" routerLink="/alertes" routerLinkActive="active" matTooltip="Alertes" matTooltipPosition="right"><mat-icon class="nav-icon">notifications_active</mat-icon></a>
+            @if (isAdmin()) {
+            <div class="nav-divider"></div>
+            <a class="nav-item nav-item-admin" routerLink="/users" routerLinkActive="active" matTooltip="Utilisateurs" matTooltipPosition="right"><mat-icon class="nav-icon">manage_accounts</mat-icon></a>
+            }
 
           }
 
@@ -205,8 +236,13 @@ interface SearchResult {
 
         <div class="sidebar-spacer"></div>
 
-        <!-- Lien Tutoriels -->
+        <!-- Lien Paramètres + Tutoriels -->
         <div class="sidebar-tuto-wrap">
+          <a class="nav-item nav-item-tuto" routerLink="/settings" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Paramètres' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">settings</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Paramètres</span> }
+          </a>
           <a class="nav-item nav-item-tuto" routerLink="/tutoriels" routerLinkActive="active"
             [matTooltip]="collapsed() ? 'Tutoriels' : ''" matTooltipPosition="right">
             <mat-icon class="nav-icon">school</mat-icon>
@@ -224,7 +260,7 @@ interface SearchResult {
           @if (!collapsed()) {
             <div class="user-info">
               <span class="user-name">{{ auth.currentUser()?.name }}</span>
-              <span class="user-role">Comptable</span>
+              <span class="user-role">{{ roleLabel() }}</span>
             </div>
             <button mat-icon-button class="logout-btn" (click)="logout()"
               matTooltip="Déconnexion" matTooltipPosition="right">
@@ -402,6 +438,11 @@ interface SearchResult {
       background: rgba(193,62,62,.38) !important;
       color: #ffcdd2 !important;
       border-left-color: #ef5350 !important;
+    }
+    .nav-item-admin.active {
+      background: rgba(251,191,36,.15) !important;
+      color: #fbbf24 !important;
+      border-left-color: #f59e0b !important;
     }
 
     /* ── Groups ── */
@@ -621,6 +662,13 @@ export class AppShellComponent implements OnInit {
   private readonly evenementService = inject(EvenementService);
 
   collapsed = signal(false);
+
+  isAdmin       = computed(() => this.auth.currentUser()?.role === 'ADMIN');
+  canSeeRapports = computed(() => this.auth.currentUser()?.role !== 'ASSISTANT');
+  roleLabel     = computed(() => {
+    const role = this.auth.currentUser()?.role;
+    return role ? (ROLE_LABELS[role] ?? role) : 'Utilisateur';
+  });
 
   openGroups = signal<Record<string, boolean>>({
     compta: true,

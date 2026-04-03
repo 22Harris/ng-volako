@@ -97,6 +97,21 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/rapprochement/rapprochement.routes').then((r) => r.rapprochementRoutes),
       },
+      {
+        path: 'taux-change',
+        loadChildren: () =>
+          import('./features/taux-change/taux-change.routes').then((r) => r.tauxChangeRoutes),
+      },
+      {
+        path: 'users',
+        loadChildren: () =>
+          import('./features/users/users.routes').then((r) => r.usersRoutes),
+      },
+      {
+        path: 'settings',
+        loadChildren: () =>
+          import('./features/settings/settings.routes').then((r) => r.settingsRoutes),
+      },
     ],
   },
   { path: '**', redirectTo: 'dashboard' },

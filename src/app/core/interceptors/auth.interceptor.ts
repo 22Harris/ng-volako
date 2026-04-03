@@ -1,7 +1,12 @@
 import { HttpInterceptorFn } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 // Les cookies httpOnly sont envoyés automatiquement par le navigateur.
-// Cet intercepteur s'assure uniquement que withCredentials est activé sur chaque requête.
+// withCredentials est appliqué uniquement aux requêtes vers notre propre API
+// pour éviter les erreurs CORS avec les APIs externes (ex: frankfurter.app).
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  return next(req.clone({ withCredentials: true }));
+  if (req.url.startsWith(environment.apiUrl)) {
+    return next(req.clone({ withCredentials: true }));
+  }
+  return next(req);
 };

@@ -9,7 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { JournalEntryService } from '../../../core/services/journal-entry.service';
 import { AccountService } from '../../../core/services/account.service';
 import { JournalService } from '../../../core/services/journal.service';
-import { JournalEntry } from '../../../core/models/journal-entry.model';
+import { JournalEntry, EntryStatus } from '../../../core/models/journal-entry.model';
 import { Account } from '../../../core/models/account.model';
 import { Journal, JOURNAL_TYPE_LABELS } from '../../../core/models/journal.model';
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
@@ -26,6 +26,7 @@ interface FlatLine {
   accountId: number;
   debit: number;
   credit: number;
+  statut: EntryStatus;
 }
 
 @Component({
@@ -205,6 +206,13 @@ interface FlatLine {
                 </td>
               </ng-container>
 
+              <ng-container matColumnDef="statut">
+                <th mat-header-cell *matHeaderCellDef>Statut</th>
+                <td mat-cell *matCellDef="let row">
+                  <span class="statut-badge statut-{{ row.statut }}">{{ statutLabel(row.statut) }}</span>
+                </td>
+              </ng-container>
+
               <ng-container matColumnDef="account">
                 <th mat-header-cell *matHeaderCellDef>Compte</th>
                 <td mat-cell *matCellDef="let row">
@@ -310,10 +318,15 @@ interface FlatLine {
 
             <div class="dp-title-block">
               <h2 class="dp-title">{{ selectedEntry()!.label }}</h2>
-              <span class="dp-date">
-                <mat-icon>calendar_today</mat-icon>
-                {{ selectedEntry()!.date | date: 'dd/MM/yyyy' }}
-              </span>
+              <div class="dp-meta">
+                <span class="dp-date">
+                  <mat-icon>calendar_today</mat-icon>
+                  {{ selectedEntry()!.date | date: 'dd/MM/yyyy' }}
+                </span>
+                <span class="statut-badge statut-{{ selectedEntry()!.statut }}">
+                  {{ statutLabel(selectedEntry()!.statut) }}
+                </span>
+              </div>
             </div>
 
             <div class="dp-lines-section">
@@ -545,6 +558,13 @@ interface FlatLine {
       background: #e8f0fe; color: #1a237e;
       border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap;
     }
+    .statut-badge {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .statut-BROUILLON  { background: #f1f5f9; color: #64748b; }
+    .statut-VALIDE     { background: #dcfce7; color: #166534; }
+    .statut-VERROUILLE { background: #fee2e2; color: #b91c1c; }
     .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
     .debit-amount  { color: #1b5e20; }
     .credit-amount { color: #0d47a1; }
@@ -638,6 +658,7 @@ interface FlatLine {
       padding: 12px 16px 14px; border-bottom: 1px solid #f0f4f8; flex-shrink: 0;
     }
     .dp-title { font-size: 15px; font-weight: 800; color: #0d1b2a; margin: 0 0 6px; line-height: 1.3; }
+    .dp-meta  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .dp-date {
       display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #78909c;
       mat-icon { font-size: 13px; width: 13px; height: 13px; }
@@ -721,7 +742,7 @@ export class JournalListComponent implements OnInit {
   pageSize  = signal(10);
   pageIndex = signal(0);
 
-  displayedColumns = ['piece', 'journal', 'date', 'label', 'account', 'debit', 'credit'];
+  displayedColumns = ['piece', 'journal', 'date', 'label', 'statut', 'account', 'debit', 'credit'];
 
   filterForm = this.fb.group({
     accountId: [null as number | null],
@@ -801,6 +822,7 @@ export class JournalListComponent implements OnInit {
           accountId:    l.accountId,
           debit:        l.debit,
           credit:       l.credit,
+          statut:       entry.statut ?? 'BROUILLON',
         } as FlatLine))
       )
       .filter(row => {
@@ -843,6 +865,10 @@ export class JournalListComponent implements OnInit {
   }
 
   min(a: number, b: number): number { return Math.min(a, b); }
+
+  statutLabel(s: EntryStatus): string {
+    return s === 'BROUILLON' ? 'Brouillon' : s === 'VALIDE' ? 'Validé' : 'Verrouillé';
+  }
 
   exportCsv(): void {
     const rows = [['Pièce', 'Journal', 'Date', 'Libellé', 'Compte', 'Débit', 'Crédit']];

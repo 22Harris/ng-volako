@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
-import { User, AuthResponse, LoginDto, RegisterDto } from '../models/auth.model';
+import { User, AuthResponse, LoginDto, RegisterDto, Role } from '../models/auth.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -43,6 +43,11 @@ export class AuthService {
 
   isAuthenticated(): boolean {
     return !!this.loadUser();
+  }
+
+  hasRole(...roles: Role[]): boolean {
+    const role = this.currentUser()?.role;
+    return role ? (roles as string[]).includes(role) : false;
   }
 
   private persist(res: AuthResponse): void {

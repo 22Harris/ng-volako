@@ -13,6 +13,7 @@ import { Account } from '../../core/models/account.model';
 import { JournalEntry } from '../../core/models/journal-entry.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AlertService } from '../../shared/components/alert/alert.service';
+import { SettingsService } from '../../core/services/settings.service';
 
 const MONTHS_FR = ['', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
@@ -353,7 +354,7 @@ interface EnrichedLigne extends BudgetLigne {
             <input class="v-input" [(ngModel)]="addFormLibelle" placeholder="Description de la ligne"
                    (keyup.enter)="confirmAdd()"/>
 
-            <label class="v-label">Montant prévu (Ar)</label>
+            <label class="v-label">Montant prévu ({{ settings.currencySymbol() }})</label>
             <input class="v-input" type="number" min="0" [(ngModel)]="addFormMontant" placeholder="0"
                    (keyup.enter)="confirmAdd()"/>
 
@@ -606,6 +607,7 @@ interface EnrichedLigne extends BudgetLigne {
   `],
 })
 export class BudgetComponent implements OnInit {
+  readonly settings               = inject(SettingsService);
   private readonly budgetService  = inject(BudgetService);
   private readonly accountService = inject(AccountService);
   private readonly journalService = inject(JournalEntryService);

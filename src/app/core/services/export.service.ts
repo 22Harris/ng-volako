@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { SettingsService } from './settings.service';
 import { environment } from '../../../environments/environment';
 import type { BalanceLine, GrandLivreResponse } from './rapports.service';
 import type { Ca3Report } from './tva.service';
@@ -7,6 +8,8 @@ import type { Ca3Report } from './tva.service';
 @Injectable({ providedIn: 'root' })
 export class ExportService {
   private readonly api = `${environment.apiUrl}/rapports`;
+
+  private readonly settings = inject(SettingsService);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -89,7 +92,8 @@ export class ExportService {
   async pdfBalance(lines: BalanceLine[], totals: { totalDebit: number; totalCredit: number; soldesD: number; soldesC: number }): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFontSize(16);
@@ -175,7 +179,8 @@ export class ExportService {
   async pdfGrandLivre(gl: GrandLivreResponse): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFontSize(16);
@@ -219,7 +224,8 @@ export class ExportService {
   async pdfTva(rapport: Ca3Report, dateFrom: string, dateTo: string): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (v: number) => v.toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (v: number) => v.toFixed(2) + ' ' + sym;
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     doc.setFontSize(18);
@@ -292,7 +298,8 @@ export class ExportService {
   }
 
   csvOperations(operations: { date: string; type: string; label: string; amount: number }[]): void {
-    const header = ['Date', 'Type', 'Libellé', 'Montant (€)'];
+    const sym = this.settings.currencySymbol();
+    const header = ['Date', 'Type', 'Libellé', `Montant (${sym})`];
     const rows = operations.map((o) => [
       new Date(o.date).toLocaleDateString('fr-FR'),
       o.type,
@@ -304,8 +311,9 @@ export class ExportService {
 
   async excelOperations(operations: { date: string; typeLabel: string; label: string; amount: number }[]): Promise<void> {
     const { utils, writeFile } = await import('xlsx');
+    const sym = this.settings.currencySymbol();
     const ws = utils.aoa_to_sheet([
-      ['Date', 'Type', 'Libellé', 'Montant (€)'],
+      ['Date', 'Type', 'Libellé', `Montant (${sym})`],
       ...operations.map((o) => [
         new Date(o.date).toLocaleDateString('fr-FR'),
         o.typeLabel,
@@ -322,7 +330,8 @@ export class ExportService {
   async pdfOperations(operations: { date: string; typeLabel: string; label: string; amount: number }[]): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
     const total = operations.reduce((s, o) => s + o.amount, 0);
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -361,7 +370,7 @@ export class ExportService {
   async excelAccounts(accounts: { code: string; name: string; class: number; balance: number }[]): Promise<void> {
     const { utils, writeFile } = await import('xlsx');
     const ws = utils.aoa_to_sheet([
-      ['Code', 'Intitulé', 'Classe', 'Solde (€)'],
+      ['Code', 'Intitulé', 'Classe', `Solde (${this.settings.currencySymbol()})`],
       ...accounts.map((a) => [a.code, a.name, a.class, Number.parseFloat((a.balance / 100).toFixed(2))]),
     ]);
     ws['!cols'] = [{ wch: 12 }, { wch: 55 }, { wch: 8 }, { wch: 15 }];
@@ -373,7 +382,8 @@ export class ExportService {
   async pdfAccounts(accounts: { code: string; name: string; class: number; balance: number }[]): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFontSize(16);
@@ -411,7 +421,8 @@ export class ExportService {
     rows: { libelle: string; categorie: string; type: string; montantPrevu: number; montantReel: number; ecart: number }[],
     moisLabel: string,
   ): void {
-    const header = ['Libellé', 'Catégorie', 'Type', 'Prévu (€)', 'Réel (€)', 'Écart (€)'];
+    const sym = this.settings.currencySymbol();
+    const header = ['Libellé', 'Catégorie', 'Type', `Prévu (${sym})`, `Réel (${sym})`, `Écart (${sym})`];
     this.downloadCsv(`budget-${moisLabel.replaceAll(/\s/g, '-')}.csv`, [header, ...this._budgetRowsFormatted(rows)]);
   }
 
@@ -421,7 +432,8 @@ export class ExportService {
   ): Promise<void> {
     const { utils, writeFile } = await import('xlsx');
     const fmt = (c: number) => Number.parseFloat((c / 100).toFixed(2));
-    const hdr = ['Libellé', 'Catégorie', 'Prévu (€)', 'Réel (€)', 'Écart (€)'];
+    const sym = this.settings.currencySymbol();
+    const hdr = ['Libellé', 'Catégorie', `Prévu (${sym})`, `Réel (${sym})`, `Écart (${sym})`];
     const toRow = (r: typeof rows[0]) => [r.libelle, r.categorie, fmt(r.montantPrevu), fmt(r.montantReel), fmt(r.ecart)];
     const ws = utils.aoa_to_sheet([
       [moisLabel],
@@ -447,7 +459,8 @@ export class ExportService {
   ): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
     const cols = {
       0: { cellWidth: 65 }, 1: { cellWidth: 35 },
       2: { cellWidth: 28, halign: 'right' as const },
@@ -507,7 +520,8 @@ export class ExportService {
   // ─── Événements ──────────────────────────────────────────────────────────
 
   csvEvenements(rows: { titre: string; categorie: string; montant: number; dateEcheance: string; recurrence: string; statut: string }[]): void {
-    const header = ['Titre', 'Catégorie', 'Montant (€)', 'Échéance', 'Récurrence', 'Statut'];
+    const sym = this.settings.currencySymbol();
+    const header = ['Titre', 'Catégorie', `Montant (${sym})`, 'Échéance', 'Récurrence', 'Statut'];
     const data = rows.map((r) => [
       r.titre, r.categorie, (r.montant / 100).toFixed(2),
       new Date(r.dateEcheance).toLocaleDateString('fr-FR'), r.recurrence, r.statut,
@@ -518,7 +532,7 @@ export class ExportService {
   async excelEvenements(rows: { titre: string; categorie: string; montant: number; dateEcheance: string; recurrence: string; statut: string }[]): Promise<void> {
     const { utils, writeFile } = await import('xlsx');
     const ws = utils.aoa_to_sheet([
-      ['Titre', 'Catégorie', 'Montant (€)', 'Échéance', 'Récurrence', 'Statut'],
+      ['Titre', 'Catégorie', `Montant (${this.settings.currencySymbol()})`, 'Échéance', 'Récurrence', 'Statut'],
       ...rows.map((r) => [
         r.titre, r.categorie, Number.parseFloat((r.montant / 100).toFixed(2)),
         new Date(r.dateEcheance).toLocaleDateString('fr-FR'), r.recurrence, r.statut,
@@ -533,7 +547,8 @@ export class ExportService {
   async pdfEvenements(rows: { titre: string; categorie: string; montant: number; dateEcheance: string; recurrence: string; statut: string }[]): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
     const total = rows.reduce((s, r) => s + r.montant, 0);
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -567,7 +582,8 @@ export class ExportService {
   // ─── Objectifs ────────────────────────────────────────────────────────────
 
   csvObjectifs(rows: { nom: string; categorie: string; montantActuel: number; montantCible: number; progression: number; dateEcheance: string; statut: string }[]): void {
-    const header = ['Nom', 'Catégorie', 'Épargné (€)', 'Cible (€)', 'Progression (%)', 'Échéance', 'Statut'];
+    const sym = this.settings.currencySymbol();
+    const header = ['Nom', 'Catégorie', `Épargné (${sym})`, `Cible (${sym})`, 'Progression (%)', 'Échéance', 'Statut'];
     const data = rows.map((r) => [
       r.nom, r.categorie, (r.montantActuel / 100).toFixed(2), (r.montantCible / 100).toFixed(2),
       r.progression, new Date(r.dateEcheance).toLocaleDateString('fr-FR'), r.statut,
@@ -578,7 +594,7 @@ export class ExportService {
   async excelObjectifs(rows: { nom: string; categorie: string; montantActuel: number; montantCible: number; progression: number; dateEcheance: string; statut: string }[]): Promise<void> {
     const { utils, writeFile } = await import('xlsx');
     const ws = utils.aoa_to_sheet([
-      ['Nom', 'Catégorie', 'Épargné (€)', 'Cible (€)', 'Progression (%)', 'Échéance', 'Statut'],
+      ['Nom', 'Catégorie', `Épargné (${this.settings.currencySymbol()})`, `Cible (${this.settings.currencySymbol()})`, 'Progression (%)', 'Échéance', 'Statut'],
       ...rows.map((r) => [
         r.nom, r.categorie,
         Number.parseFloat((r.montantActuel / 100).toFixed(2)),
@@ -595,7 +611,8 @@ export class ExportService {
   async pdfObjectifs(rows: { nom: string; categorie: string; montantActuel: number; montantCible: number; progression: number; dateEcheance: string; statut: string }[]): Promise<void> {
     const { jsPDF } = await import('jspdf');
     const { default: autoTable } = await import('jspdf-autotable');
-    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' €';
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     doc.setFontSize(16);

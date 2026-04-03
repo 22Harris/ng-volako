@@ -10,6 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { FactureService } from '../../../core/services/facture.service';
 import { TiersService } from '../../../core/services/tiers.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
+import { SettingsService } from '../../../core/services/settings.service';
 import { CurrencyInputComponent } from '../../../shared/components/currency-input/currency-input.component';
 import { Facture } from '../../../core/models/facture.model';
 import { Tiers } from '../../../core/models/tiers.model';
@@ -87,9 +88,9 @@ import { Tiers } from '../../../core/models/tiers.model';
         <div class="field-group">
           <label class="field-label">Montant <span class="req">*</span></label>
           <div class="field-wrap currency-wrap">
-            <mat-icon class="fi">euro</mat-icon>
+            <span class="fi currency-text-fi">{{ settings.currencySymbol() }}</span>
             <app-currency-input formControlName="montant" />
-            <span class="currency-suffix">€</span>
+            <span class="currency-suffix">{{ settings.currencySymbol() }}</span>
           </div>
         </div>
 
@@ -218,6 +219,7 @@ import { Tiers } from '../../../core/models/tiers.model';
     .select-wrap { padding-right: 6px; }
 
     .fi { font-size: 16px; width: 16px; height: 16px; color: #94a3b8; flex-shrink: 0; }
+    .currency-text-fi { font-size: 13px; font-weight: 700; width: auto; }
     .fi-top { margin-top: 2px; }
     .fi-chevron { margin-left: auto; pointer-events: none; }
 
@@ -304,6 +306,7 @@ export class FactureFormComponent implements OnInit {
   private readonly service = inject(FactureService);
   private readonly tiersService = inject(TiersService);
   private readonly alert = inject(AlertService);
+  readonly settings = inject(SettingsService);
   readonly dialogRef = inject(MatDialogRef<FactureFormComponent>);
   readonly data: Facture | null = inject(MAT_DIALOG_DATA);
 

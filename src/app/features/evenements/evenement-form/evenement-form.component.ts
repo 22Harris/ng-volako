@@ -8,6 +8,7 @@ import { EvenementService } from '../../../core/services/evenement.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { CATEGORIE_CONFIG, RECURRENCE_CONFIG, STATUT_CONFIG, ALL_CATEGORIES } from '../../../core/utils/evenement-category.utils';
 import { Evenement, EvenementCategorie, EvenementRecurrence, EvenementStatut } from '../../../core/models/evenement.model';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-evenement-form',
@@ -69,7 +70,7 @@ import { Evenement, EvenementCategorie, EvenementRecurrence, EvenementStatut } f
           <!-- Montant + Date -->
           <div class="row-2">
             <div class="field-group">
-              <label class="field-label">Montant (Ar) <span class="req">*</span></label>
+              <label class="field-label">Montant ({{ settings.currencySymbol() }}) <span class="req">*</span></label>
               <div class="field-wrap" [class.has-error]="montantCtrl.invalid && montantCtrl.touched">
                 <mat-icon class="fi">payments</mat-icon>
                 <input class="fi-input" formControlName="montant" type="number" min="0" placeholder="ex: 350000" />
@@ -299,6 +300,7 @@ import { Evenement, EvenementCategorie, EvenementRecurrence, EvenementStatut } f
   `],
 })
 export class EvenementFormComponent implements OnInit {
+  readonly settings           = inject(SettingsService);
   private readonly fb         = inject(FormBuilder);
   private readonly service    = inject(EvenementService);
   private readonly alert      = inject(AlertService);

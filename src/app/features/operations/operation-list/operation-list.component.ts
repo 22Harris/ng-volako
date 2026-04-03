@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { AppDateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { OperationService } from '../../../core/services/operation.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ExportService } from '../../../core/services/export.service';
 import { Operation, OperationType } from '../../../core/models/operation.model';
 import { OperationFormComponent } from '../operation-form/operation-form.component';
@@ -44,10 +45,12 @@ import { OPERATION_TYPE_CONFIG, CATEGORY_LABELS, OPERATION_TYPES_BY_CATEGORY, Op
               <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
             </div>
           }
-          <button class="btn-new" (click)="openForm()">
-            <mat-icon>add</mat-icon>
-            Nouvelle opération
-          </button>
+          @if (!isAuditeur()) {
+            <button class="btn-new" (click)="openForm()">
+              <mat-icon>add</mat-icon>
+              Nouvelle opération
+            </button>
+          }
         </div>
       </div>
 
@@ -633,6 +636,9 @@ export class OperationListComponent implements OnInit {
   private readonly exportSvc  = inject(ExportService);
   private readonly fb         = inject(FormBuilder);
   private readonly dialog     = inject(MatDialog);
+  private readonly auth       = inject(AuthService);
+
+  readonly isAuditeur = computed(() => this.auth.currentUser()?.role === 'AUDITEUR');
 
   allOperations = signal<Operation[]>([]);
   filtered      = signal<Operation[]>([]);

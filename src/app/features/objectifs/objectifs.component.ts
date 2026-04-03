@@ -11,6 +11,7 @@ import { Objectif, ObjectifStatut, ObjectifCategorie, CreateObjectifDto } from '
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AlertService } from '../../shared/components/alert/alert.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
+import { SettingsService } from '../../core/services/settings.service';
 
 type FilterStatut = 'TOUT' | ObjectifStatut;
 
@@ -215,7 +216,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
           <div class="versement-modal" (click)="$event.stopPropagation()">
             <h3>Ajouter un versement</h3>
             <p>{{ versementObjNom() }}</p>
-            <label class="v-label">Montant (Ar)</label>
+            <label class="v-label">Montant ({{ settings.currencySymbol() }})</label>
             <input class="v-input" type="number" [(ngModel)]="versementMontant" placeholder="0"
                    (keyup.enter)="confirmVersement()"/>
             <div class="v-actions">
@@ -261,11 +262,11 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 
             <div class="form-row">
               <div class="form-col">
-                <label class="v-label">Montant cible (Ar) *</label>
+                <label class="v-label">Montant cible ({{ settings.currencySymbol() }}) *</label>
                 <input class="v-input" type="number" min="1" [(ngModel)]="formMontantCible" placeholder="0"/>
               </div>
               <div class="form-col">
-                <label class="v-label">Déjà épargné (Ar)</label>
+                <label class="v-label">Déjà épargné ({{ settings.currencySymbol() }})</label>
                 <input class="v-input" type="number" min="0" [(ngModel)]="formMontantActuel" placeholder="0"/>
               </div>
             </div>
@@ -523,6 +524,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
   `],
 })
 export class ObjectifsComponent implements OnInit {
+  readonly settings                = inject(SettingsService);
   private readonly objectifService = inject(ObjectifService);
   private readonly exportSvc       = inject(ExportService);
   private readonly alert           = inject(AlertService);

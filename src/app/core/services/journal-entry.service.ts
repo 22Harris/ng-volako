@@ -30,4 +30,16 @@ export class JournalEntryService {
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/${id}`);
   }
+
+  valider(id: number): Observable<JournalEntry> {
+    return this.http.patch<JournalEntry>(`${this.api}/${id}/valider`, {});
+  }
+
+  rejeter(id: number, note?: string): Observable<JournalEntry> {
+    return this.http.patch<JournalEntry>(`${this.api}/${id}/rejeter`, { note });
+  }
+
+  verrouiller(id: number): Observable<JournalEntry> {
+    return this.http.patch<JournalEntry>(`${this.api}/${id}/verrouiller`, {});
+  }
 }

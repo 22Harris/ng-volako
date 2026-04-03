@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -6,11 +6,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { AccountService } from '../../core/services/account.service';
 import { OperationService } from '../../core/services/operation.service';
+import { AuthService } from '../../core/services/auth.service';
 import { AccountFormComponent } from '../accounts/account-form/account-form.component';
 import { OperationFormComponent } from '../operations/operation-form/operation-form.component';
 import { OperationViewDialogComponent } from '../operations/operation-view-dialog/operation-view-dialog.component';
 import { Account } from '../../core/models/account.model';
 import { Operation } from '../../core/models/operation.model';
+import { Role } from '../../core/models/auth.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { OperationTypePipe } from '../../shared/pipes/operation-type.pipe';
 import { OPERATION_TYPE_CONFIG } from '../../core/utils/operation-type.utils';
@@ -24,6 +26,15 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
   6: { name: 'Charges',             bg: '#fde8e8', fg: '#b71c1c' },
   7: { name: 'Produits',            bg: '#e8f5e9', fg: '#1b5e20' },
   8: { name: 'Résultats',           bg: '#f3e5f5', fg: '#4a148c' },
+};
+
+const ROLE_LABELS: Record<Role, string> = {
+  ADMIN:          'Administrateur',
+  DAF:            'DAF',
+  CHEF_COMPTABLE: 'Chef comptable',
+  COMPTABLE:      'Comptable',
+  ASSISTANT:      'Assistant',
+  AUDITEUR:       'Auditeur',
 };
 
 @Component({
@@ -44,13 +55,18 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
       <!-- ── Page Header ── -->
       <div class="dash-header">
         <div>
-          <h1 class="dash-title">Tableau de bord</h1>
-          <p class="dash-date">{{ today | date:'dd/MM/yyyy' }}</p>
+          <div class="dash-greeting">
+            Bonjour, <strong>{{ userName() }}</strong>
+            <span class="role-pill role-{{ role() }}">{{ roleLabel() }}</span>
+          </div>
+          <p class="dash-date">{{ today | date:'EEEE dd MMMM yyyy' : '' : 'fr-FR' }}</p>
         </div>
-        <button mat-flat-button class="header-btn" (click)="openOperationDialog()">
-          <mat-icon>add</mat-icon>
-          Nouvelle opération
-        </button>
+        @if (canCreateOperation()) {
+          <button mat-flat-button class="header-btn" (click)="openOperationDialog()">
+            <mat-icon>add</mat-icon>
+            Nouvelle opération
+          </button>
+        }
       </div>
 
       <!-- ── KPI Cards ── -->
@@ -142,7 +158,9 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
             <div class="empty-state">
               <mat-icon>inbox</mat-icon>
               <p>Aucune opération pour le moment</p>
-              <button mat-stroked-button (click)="openOperationDialog()">Créer une opération</button>
+              @if (canCreateOperation()) {
+                <button mat-stroked-button (click)="openOperationDialog()">Créer une opération</button>
+              }
             </div>
           } @else {
             <div class="op-list">
@@ -191,7 +209,6 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
             }
           </div>
 
-          <!-- Légende -->
           <div class="bc-legend">
             <span class="bc-leg-item bc-leg-pos">
               <span class="bc-leg-dot"></span>Positif
@@ -209,25 +226,29 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
         <h3 class="quick-title">Actions rapides</h3>
         <div class="quick-row">
 
-          <button mat-stroked-button class="quick-btn" (click)="openOperationDialog()">
-            <div class="quick-icon blue-icon">
-              <mat-icon>add_circle_outline</mat-icon>
-            </div>
-            <div>
-              <div class="quick-label">Nouvelle opération</div>
-              <div class="quick-sub">Saisir une entrée</div>
-            </div>
-          </button>
+          @if (canCreateOperation()) {
+            <button mat-stroked-button class="quick-btn" (click)="openOperationDialog()">
+              <div class="quick-icon blue-icon">
+                <mat-icon>add_circle_outline</mat-icon>
+              </div>
+              <div>
+                <div class="quick-label">Nouvelle opération</div>
+                <div class="quick-sub">Saisir une entrée</div>
+              </div>
+            </button>
+          }
 
-          <button mat-stroked-button class="quick-btn" (click)="openAccountDialog()">
-            <div class="quick-icon green-icon">
-              <mat-icon>add_card</mat-icon>
-            </div>
-            <div>
-              <div class="quick-label">Nouveau compte</div>
-              <div class="quick-sub">Plan comptable</div>
-            </div>
-          </button>
+          @if (canCreateAccount()) {
+            <button mat-stroked-button class="quick-btn" (click)="openAccountDialog()">
+              <div class="quick-icon green-icon">
+                <mat-icon>add_card</mat-icon>
+              </div>
+              <div>
+                <div class="quick-label">Nouveau compte</div>
+                <div class="quick-sub">Plan comptable</div>
+              </div>
+            </button>
+          }
 
           <button mat-stroked-button routerLink="/accounts" class="quick-btn">
             <div class="quick-icon teal-icon">
@@ -249,8 +270,28 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
             </div>
           </button>
 
+          @if (isAdmin()) {
+            <button mat-stroked-button routerLink="/users" class="quick-btn">
+              <div class="quick-icon admin-icon">
+                <mat-icon>manage_accounts</mat-icon>
+              </div>
+              <div>
+                <div class="quick-label">Utilisateurs</div>
+                <div class="quick-sub">Gérer les accès</div>
+              </div>
+            </button>
+          }
+
         </div>
       </div>
+
+      <!-- ── Message lecture seule (AUDITEUR) ── -->
+      @if (isAuditeur()) {
+        <div class="readonly-banner">
+          <mat-icon>info</mat-icon>
+          <span>Mode lecture seule — votre rôle Auditeur ne permet pas de créer ou modifier des données.</span>
+        </div>
+      }
 
     </div>
   `,
@@ -262,8 +303,22 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
       display: flex; align-items: flex-start; justify-content: space-between;
       margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
     }
-    .dash-title { font-size: 26px; font-weight: 800; color: #0d1b2a; margin: 0 0 4px; }
+    .dash-greeting {
+      font-size: 22px; font-weight: 800; color: #0d1b2a; margin-bottom: 4px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
     .dash-date  { color: #78909c; margin: 0; font-size: 13px; }
+
+    .role-pill {
+      display: inline-block; padding: 3px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; vertical-align: middle;
+    }
+    .role-ADMIN          { background: #fee2e2; color: #b91c1c; }
+    .role-DAF            { background: #ede9fe; color: #6d28d9; }
+    .role-CHEF_COMPTABLE { background: #dbeafe; color: #1d4ed8; }
+    .role-COMPTABLE      { background: #e0f2fe; color: #0369a1; }
+    .role-ASSISTANT      { background: #f1f5f9; color: #475569; }
+    .role-AUDITEUR       { background: #fef3c7; color: #b45309; }
 
     .header-btn {
       height: 44px !important;
@@ -400,8 +455,18 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
     .teal-icon  { background:#e0f7f4; color:#004d40; }
     .green-icon { background:#e8f5e9; color:#2e7d32; }
     .amber-icon { background:#fff8e1; color:#f57f17; }
+    .admin-icon { background:#fef3c7; color:#b45309; }
     .quick-label { font-size:13px; font-weight:600; color:#0d1b2a; }
     .quick-sub   { font-size:11px; color:#90a4ae; }
+
+    /* ── Lecture seule banner ── */
+    .readonly-banner {
+      margin-top: 20px; display: flex; align-items: center; gap: 10px;
+      padding: 12px 18px; border-radius: 12px;
+      background: #fef3c7; color: #92400e;
+      border: 1px solid #fde68a; font-size: 13px;
+      mat-icon { font-size: 18px; width: 18px; height: 18px; flex-shrink: 0; }
+    }
 
     @media (max-width:1200px) { .dash-grid { grid-template-columns:1fr 1fr; } }
     @media (max-width:900px)  { .dash-grid { grid-template-columns:1fr; } }
@@ -411,6 +476,7 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
 export class DashboardComponent implements OnInit {
   private readonly accountService   = inject(AccountService);
   private readonly operationService = inject(OperationService);
+  private readonly auth             = inject(AuthService);
   private readonly dialog           = inject(MatDialog);
 
   accounts       = signal<Account[]>([]);
@@ -418,9 +484,21 @@ export class DashboardComponent implements OnInit {
 
   today = new Date();
 
-  classItems = Object.entries(CLASS_META).map(([num, meta]) => ({
-    num: +num, ...meta
-  }));
+  // ── Profil utilisateur ──────────────────────────────────────────────────────
+  userName  = computed(() => this.auth.currentUser()?.name ?? 'vous');
+  role      = computed(() => this.auth.currentUser()?.role ?? 'ASSISTANT');
+  roleLabel = computed(() => ROLE_LABELS[this.role()] ?? this.role());
+
+  isAdmin    = computed(() => this.role() === 'ADMIN');
+  isAuditeur = computed(() => this.role() === 'AUDITEUR');
+
+  canCreateOperation = computed(() => this.role() !== 'AUDITEUR');
+  canCreateAccount   = computed(() =>
+    ['ADMIN', 'DAF', 'CHEF_COMPTABLE', 'COMPTABLE'].includes(this.role())
+  );
+
+  // ── Données ─────────────────────────────────────────────────────────────────
+  classItems = Object.entries(CLASS_META).map(([num, meta]) => ({ num: +num, ...meta }));
 
   ngOnInit(): void {
     this.accountService.getAll().subscribe({ next: list => this.accounts.set(list), error: () => {} });

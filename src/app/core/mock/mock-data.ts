@@ -63,6 +63,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 1, date: '2026-03-01',
     label: 'Vente Société Alpha — Facture 2026-018',
     operationId: 1,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 1, accountId: 7,  debit: 984000, credit: 0      }, // 411 Clients TTC
       { id: 2, accountId: 17, debit: 0,      credit: 820000 }, // 701 Ventes HT
@@ -73,6 +74,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 2, date: '2026-02-28',
     label: 'Salaires mars 2026',
     operationId: 2,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 4, accountId: 14, debit: 280000, credit: 0      }, // 641 Salaires
       { id: 5, accountId: 8,  debit: 0,      credit: 280000 }, // 421 Personnel
@@ -82,6 +84,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 3, date: '2026-02-26',
     label: 'Achat stock Fournisseur Beta — FA 20240892',
     operationId: 3,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 6, accountId: 12, debit: 185000, credit: 0      }, // 601 Achats
       { id: 7, accountId: 6,  debit: 0,      credit: 185000 }, // 401 Fournisseurs
@@ -91,6 +94,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 4, date: '2026-02-25',
     label: 'Loyer bureau mars 2026',
     operationId: 4,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 8,  accountId: 13, debit: 120000, credit: 0      }, // 615 Loyer
       { id: 9,  accountId: 10, debit: 0,      credit: 120000 }, // 512 Banque
@@ -100,6 +104,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 5, date: '2026-02-22',
     label: 'Règlement facture EDF Entreprises',
     operationId: 5,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 10, accountId: 16, debit: 8500, credit: 0    }, // 626 Télécom/frais
       { id: 11, accountId: 10, debit: 0,    credit: 8500 }, // 512 Banque
@@ -109,6 +114,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 6, date: '2026-02-20',
     label: 'Prestation conseil Client Gamma — Facture 2026-017',
     operationId: 6,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 12, accountId: 7,  debit: 174000, credit: 0      }, // 411 Clients TTC
       { id: 13, accountId: 18, debit: 0,      credit: 145000 }, // 706 Prestations HT
@@ -119,6 +125,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
     id: 7, date: '2026-02-15',
     label: 'Mensualité crédit équipement',
     operationId: 7,
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 15, accountId: 10, debit: 0,     credit: 62000 }, // 512 Banque
       { id: 16, accountId: 6,  debit: 62000, credit: 0     }, // 401 (remboursement)
@@ -127,6 +134,7 @@ export const MOCK_JOURNAL_ENTRIES: JournalEntry[] = [
   {
     id: 8, date: '2026-02-10',
     label: 'Règlement client Delta — Facture 2026-014',
+    statut: 'BROUILLON' as const,
     lines: [
       { id: 17, accountId: 10, debit: 280500, credit: 0      }, // 512 Banque
       { id: 18, accountId: 7,  debit: 0,      credit: 280500 }, // 411 Clients

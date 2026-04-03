@@ -21,6 +21,7 @@ import { balancedEntryValidator, singleSideValidator } from '../../operations/op
 import { Operation } from '../../../core/models/operation.model';
 import { Journal, JOURNAL_TYPE_LABELS } from '../../../core/models/journal.model';
 import { CODE_TVA_LABELS, CodeTva } from '../../../core/models/journal-line.model';
+import { SettingsService } from '../../../core/services/settings.service';
 
 @Component({
   selector: 'app-journal-entry-form',
@@ -76,11 +77,11 @@ import { CODE_TVA_LABELS, CodeTva } from '../../../core/models/journal-line.mode
             <div class="line-row" [formGroup]="asFormGroup(lineCtrl)">
               <app-account-select formControlName="accountId" label="Compte" class="account-field"></app-account-select>
               <mat-form-field appearance="outline">
-                <mat-label>Débit (€)</mat-label>
+                <mat-label>Débit ({{ settings.currencySymbol() }})</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="debit" />
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Crédit (€)</mat-label>
+                <mat-label>Crédit ({{ settings.currencySymbol() }})</mat-label>
                 <input matInput type="number" min="0" step="0.01" formControlName="credit" />
               </mat-form-field>
               <mat-form-field appearance="outline" class="tva-field">
@@ -155,6 +156,7 @@ import { CODE_TVA_LABELS, CodeTva } from '../../../core/models/journal-line.mode
   `]
 })
 export class JournalEntryFormComponent implements OnInit {
+  readonly settings      = inject(SettingsService);
   private fb             = inject(FormBuilder);
   private journalService = inject(JournalEntryService);
   private readonly journalSvc = inject(JournalService);
