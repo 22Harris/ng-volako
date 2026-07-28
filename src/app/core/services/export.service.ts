@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { environment } from '../../../environments/environment';
-import type { BalanceLine, GrandLivreResponse } from './rapports.service';
+import type { BalanceLine, GrandLivreResponse, BilanReport, CompteResultatReport } from './rapports.service';
 import type { Ca3Report } from './tva.service';
 
 @Injectable({ providedIn: 'root' })
@@ -42,6 +42,19 @@ export class ExportService {
       .subscribe((blob) => {
         const today = new Date().toISOString().split('T')[0].replaceAll('-', '');
         this._triggerDownload(blob, `FEC_${today}.txt`);
+      });
+  }
+
+  downloadFecExcel(dateFrom?: string, dateTo?: string): void {
+    const params: Record<string, string> = {};
+    if (dateFrom) params['dateFrom'] = dateFrom;
+    if (dateTo) params['dateTo'] = dateTo;
+
+    this.http
+      .get(`${this.api}/fec/excel`, { params, responseType: 'blob' })
+      .subscribe((blob) => {
+        const today = new Date().toISOString().split('T')[0].replaceAll('-', '');
+        this._triggerDownload(blob, `FEC_${today}.xlsx`);
       });
   }
 
@@ -641,5 +654,231 @@ export class ExportService {
     });
 
     doc.save('objectifs.pdf');
+  }
+
+  // ─── Bilan ────────────────────────────────────────────────────────────────
+
+  csvBilan(bilan: BilanReport): void {
+    const fmtEur = (c: number) => (c / 100).toFixed(2);
+    const rows: (string | number)[][] = [
+      ['ACTIF', ''],
+      ['Actif immobilisé', ''],
+      ...bilan.actif.immobilisations.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.stocks.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['Actif circulant', ''],
+      ...bilan.actif.creances.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.disponibilites.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.autresActif.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['TOTAL ACTIF', fmtEur(bilan.actif.total)],
+      [],
+      ['PASSIF', ''],
+      ['Capitaux propres', ''],
+      ...bilan.passif.capitauxPropres.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ["Résultat de l'exercice", fmtEur(bilan.resultatExercice)],
+      ['Dettes financières', ''],
+      ...bilan.passif.dettesFinancieres.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['Dettes fournisseurs', ''],
+      ...bilan.passif.dettesFournisseurs.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.passif.autresDettes.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['TOTAL PASSIF', fmtEur(bilan.passif.total + bilan.resultatExercice)],
+    ];
+    this.downloadCsv(`bilan-${bilan.exercice}.csv`, [['Rubrique', `Montant (${this.settings.currencySymbol()})`], ...rows]);
+  }
+
+  async excelBilan(bilan: BilanReport): Promise<void> {
+    const { utils, writeFile } = await import('xlsx');
+    const fmt = (c: number) => Number.parseFloat((c / 100).toFixed(2));
+    const sym = this.settings.currencySymbol();
+    const section = (label: string) => [label, ''];
+    const poste = (p: { code: string; name: string; solde: number }) => [p.code + ' ' + p.name, fmt(p.solde)];
+
+    const ws = utils.aoa_to_sheet([
+      [`Bilan comptable — Exercice ${bilan.exercice}`],
+      [],
+      ['ACTIF', `Montant (${sym})`],
+      section('── Actif immobilisé ──'),
+      ...bilan.actif.immobilisations.map(poste),
+      section('── Actif circulant ──'),
+      ...bilan.actif.stocks.map(poste),
+      ...bilan.actif.creances.map(poste),
+      ...bilan.actif.disponibilites.map(poste),
+      ...bilan.actif.autresActif.map(poste),
+      ['TOTAL ACTIF', fmt(bilan.actif.total)],
+      [],
+      ['PASSIF', `Montant (${sym})`],
+      section('── Capitaux propres ──'),
+      ...bilan.passif.capitauxPropres.map(poste),
+      ["Résultat de l'exercice", fmt(bilan.resultatExercice)],
+      section('── Dettes financières ──'),
+      ...bilan.passif.dettesFinancieres.map(poste),
+      section('── Dettes fournisseurs ──'),
+      ...bilan.passif.dettesFournisseurs.map(poste),
+      ...bilan.passif.autresDettes.map(poste),
+      ['TOTAL PASSIF', fmt(bilan.passif.total + bilan.resultatExercice)],
+    ]);
+    ws['!cols'] = [{ wch: 55 }, { wch: 18 }];
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, `Bilan ${bilan.exercice}`);
+    writeFile(wb, `bilan-${bilan.exercice}.xlsx`);
+  }
+
+  async pdfBilan(bilan: BilanReport): Promise<void> {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFontSize(18);
+    doc.text(`Bilan comptable — Exercice ${bilan.exercice}`, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Édité le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28);
+
+    const actifRows = [
+      ['Actif immobilisé', ''],
+      ...bilan.actif.immobilisations.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['Actif circulant', ''],
+      ...bilan.actif.stocks.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.creances.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.disponibilites.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.actif.autresActif.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+    ];
+    autoTable(doc, {
+      startY: 34,
+      head: [['ACTIF', 'Montant']],
+      body: actifRows,
+      foot: [['TOTAL ACTIF', fmtEur(bilan.actif.total)]],
+      headStyles: { fillColor: [21, 101, 192], fontSize: 9 },
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 40, halign: 'right' } },
+      showFoot: 'lastPage',
+    });
+
+    const y2 = (doc as any).lastAutoTable.finalY + 10;
+    const passifRows = [
+      ['Capitaux propres', ''],
+      ...bilan.passif.capitauxPropres.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ["Résultat de l'exercice", fmtEur(bilan.resultatExercice)],
+      ['Dettes financières', ''],
+      ...bilan.passif.dettesFinancieres.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ['Dettes fournisseurs', ''],
+      ...bilan.passif.dettesFournisseurs.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+      ...bilan.passif.autresDettes.map(p => [p.code + ' ' + p.name, fmtEur(p.solde)]),
+    ];
+    autoTable(doc, {
+      startY: y2,
+      head: [['PASSIF', 'Montant']],
+      body: passifRows,
+      foot: [['TOTAL PASSIF', fmtEur(bilan.passif.total + bilan.resultatExercice)]],
+      headStyles: { fillColor: [46, 125, 50], fontSize: 9 },
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 40, halign: 'right' } },
+      showFoot: 'lastPage',
+    });
+
+    doc.save(`bilan-${bilan.exercice}.pdf`);
+  }
+
+  // ─── Compte de résultat ───────────────────────────────────────────────────
+
+  csvResultat(rapport: CompteResultatReport): void {
+    const fmtEur = (c: number) => (c / 100).toFixed(2);
+    const rows: (string | number)[][] = [
+      ['PRODUITS', ''],
+      ...rapport.produits.map(p => [p.code + ' ' + p.name, fmtEur(p.montant)]),
+      ['TOTAL PRODUITS', fmtEur(rapport.totalProduits)],
+      [],
+      ['CHARGES', ''],
+      ...rapport.charges.map(p => [p.code + ' ' + p.name, fmtEur(p.montant)]),
+      ['TOTAL CHARGES', fmtEur(rapport.totalCharges)],
+      [],
+      [rapport.resultat >= 0 ? 'RÉSULTAT (bénéfice)' : 'RÉSULTAT (perte)', fmtEur(rapport.resultat)],
+    ];
+    this.downloadCsv(`resultat-${rapport.exercice}.csv`, [['Rubrique', `Montant (${this.settings.currencySymbol()})`], ...rows]);
+  }
+
+  async excelResultat(rapport: CompteResultatReport): Promise<void> {
+    const { utils, writeFile } = await import('xlsx');
+    const fmt = (c: number) => Number.parseFloat((c / 100).toFixed(2));
+    const sym = this.settings.currencySymbol();
+
+    const ws = utils.aoa_to_sheet([
+      [`Compte de résultat — Exercice ${rapport.exercice}`],
+      [],
+      ['PRODUITS', `Montant (${sym})`],
+      ...rapport.produits.map(p => [p.code + ' ' + p.name, fmt(p.montant)]),
+      ['TOTAL PRODUITS', fmt(rapport.totalProduits)],
+      [],
+      ['CHARGES', `Montant (${sym})`],
+      ...rapport.charges.map(p => [p.code + ' ' + p.name, fmt(p.montant)]),
+      ['TOTAL CHARGES', fmt(rapport.totalCharges)],
+      [],
+      [rapport.resultat >= 0 ? 'RÉSULTAT (bénéfice)' : 'RÉSULTAT (perte)', fmt(rapport.resultat)],
+    ]);
+    ws['!cols'] = [{ wch: 55 }, { wch: 18 }];
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, `Résultat ${rapport.exercice}`);
+    writeFile(wb, `resultat-${rapport.exercice}.xlsx`);
+  }
+
+  async pdfResultat(rapport: CompteResultatReport): Promise<void> {
+    const { jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const sym = this.settings.currencySymbol();
+    const fmtEur = (c: number) => (c / 100).toFixed(2) + ' ' + sym;
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    doc.setFontSize(18);
+    doc.text(`Compte de résultat — Exercice ${rapport.exercice}`, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Édité le ${new Date().toLocaleDateString('fr-FR')}`, 14, 28);
+
+    doc.setFontSize(12);
+    doc.text('Produits', 14, 38);
+    autoTable(doc, {
+      startY: 42,
+      head: [['Compte', 'Montant']],
+      body: rapport.produits.map(p => [p.code + ' ' + p.name, fmtEur(p.montant)]),
+      foot: [['TOTAL PRODUITS', fmtEur(rapport.totalProduits)]],
+      headStyles: { fillColor: [46, 125, 50], fontSize: 9 },
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 40, halign: 'right' } },
+      showFoot: 'lastPage',
+    });
+
+    const y2 = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.text('Charges', 14, y2);
+    autoTable(doc, {
+      startY: y2 + 4,
+      head: [['Compte', 'Montant']],
+      body: rapport.charges.map(p => [p.code + ' ' + p.name, fmtEur(p.montant)]),
+      foot: [['TOTAL CHARGES', fmtEur(rapport.totalCharges)]],
+      headStyles: { fillColor: [198, 40, 40], fontSize: 9 },
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8 },
+      columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 40, halign: 'right' } },
+      showFoot: 'lastPage',
+    });
+
+    const y3 = (doc as any).lastAutoTable.finalY + 10;
+    autoTable(doc, {
+      startY: y3,
+      body: [[rapport.resultat >= 0 ? 'RÉSULTAT NET (bénéfice)' : 'RÉSULTAT NET (perte)', fmtEur(rapport.resultat)]],
+      bodyStyles: { fontSize: 12, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 130, fillColor: rapport.resultat >= 0 ? [232, 245, 233] : [253, 232, 232] },
+        1: {
+          cellWidth: 40, halign: 'right',
+          fillColor: rapport.resultat >= 0 ? [232, 245, 233] : [253, 232, 232],
+          textColor: rapport.resultat >= 0 ? [46, 125, 50] : [198, 40, 40],
+        },
+      },
+    });
+
+    doc.save(`resultat-${rapport.exercice}.pdf`);
   }
 }

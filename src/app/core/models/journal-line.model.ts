@@ -22,6 +22,7 @@ export interface JournalLine {
   accountId: number;
   entryId?: number;
   codeTva?: CodeTva;
+  lettre?: string | null;
 }
 
 export interface CreateJournalLineDto {

@@ -36,3 +36,19 @@ export interface ImportReleveResult extends ReleveImport {}
 export interface RapprocherDto {
   journalLineId: number;
 }
+
+export interface MatchCandidate {
+  journalLineId: number;
+  debit: number;
+  credit: number;
+  account: { id: number; code: string; name: string };
+  entry: { id: number; date: string; label: string; pieceNumber: string | null };
+  score: number;
+  reasons: string[];
+}
+
+export interface AutoMatchResult {
+  total: number;
+  matched: number;
+  skipped: number;
+}

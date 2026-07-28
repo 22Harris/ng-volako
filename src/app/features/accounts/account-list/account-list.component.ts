@@ -11,6 +11,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { AccountService } from '../../../core/services/account.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { ExportService } from '../../../core/services/export.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AccountFormComponent } from '../account-form/account-form.component';
 import { Account } from '../../../core/models/account.model';
@@ -39,7 +40,7 @@ const CLASS_LABELS: Record<number, string> = {
           <p class="page-sub">{{ filteredAccounts().length }} compte(s) · Plan comptable</p>
         </div>
         <div class="header-actions">
-          @if (accounts().length === 0 || pcgLoading()) {
+          @if (isAdmin() && (accounts().length === 0 || pcgLoading())) {
             <button class="btn-pcg" (click)="initPcg()" [disabled]="pcgLoading()">
               <mat-icon>auto_fix_high</mat-icon>
               {{ pcgLoading() ? 'Initialisation…' : 'Init PCG' }}
@@ -52,10 +53,12 @@ const CLASS_LABELS: Record<number, string> = {
               <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
             </div>
           }
-          <button class="btn-new" (click)="openDialog()">
-            <mat-icon>add</mat-icon>
-            Nouveau compte
-          </button>
+          @if (isAdmin()) {
+            <button class="btn-new" (click)="openDialog()">
+              <mat-icon>add</mat-icon>
+              Nouveau compte
+            </button>
+          }
         </div>
       </div>
 
@@ -161,7 +164,7 @@ const CLASS_LABELS: Record<number, string> = {
                     matTooltip="Compte système — lecture seule" disabled>
                     <mat-icon>lock</mat-icon>
                   </button>
-                } @else {
+                } @else if (isAdmin()) {
                   <button mat-icon-button matTooltip="Modifier"
                     class="action-btn edit" (click)="$event.stopPropagation(); openDialog(a)">
                     <mat-icon>edit</mat-icon>
@@ -369,6 +372,9 @@ export class AccountListComponent implements OnInit {
   private readonly exportSvc      = inject(ExportService);
   private readonly dialog         = inject(MatDialog);
   private readonly fb             = inject(FormBuilder);
+  private readonly auth           = inject(AuthService);
+
+  readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
 
   accounts    = signal<Account[]>([]);
   pcgLoading  = signal(false);

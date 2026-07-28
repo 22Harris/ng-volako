@@ -108,6 +108,21 @@ export const routes: Routes = [
           import('./features/users/users.routes').then((r) => r.usersRoutes),
       },
       {
+        path: 'fiscal-years',
+        loadChildren: () =>
+          import('./features/fiscal-years/fiscal-years.routes').then((r) => r.fiscalYearsRoutes),
+      },
+      {
+        path: 'audit-log',
+        loadChildren: () =>
+          import('./features/audit-log/audit-log.routes').then((r) => r.auditLogRoutes),
+      },
+      {
+        path: 'profile',
+        loadChildren: () =>
+          import('./features/profile/profile.routes').then((r) => r.profileRoutes),
+      },
+      {
         path: 'settings',
         loadChildren: () =>
           import('./features/settings/settings.routes').then((r) => r.settingsRoutes),

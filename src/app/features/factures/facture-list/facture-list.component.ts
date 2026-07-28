@@ -11,6 +11,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { FactureFormComponent } from '../facture-form/facture-form.component';
 import { Facture, FactureStatut } from '../../../core/models/facture.model';
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 const STATUT_CONFIG: Record<FactureStatut, { label: string; color: string; bg: string; icon: string }> = {
   EN_ATTENTE:         { label: 'En attente',          color: '#e65100', bg: '#fff3e0', icon: 'schedule' },
@@ -22,7 +23,7 @@ const STATUT_CONFIG: Record<FactureStatut, { label: string; color: string; bg: s
 @Component({
   selector: 'app-facture-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, MatTooltipModule, CentsPipe],
+  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, MatTooltipModule, CentsPipe, PaginationComponent],
   template: `
     <div class="page">
 
@@ -150,6 +151,11 @@ const STATUT_CONFIG: Record<FactureStatut, { label: string; color: string; bg: s
           </table>
         </div>
       }
+
+      <app-pagination
+        [page]="page()" [pageSize]="pageSize()" [total]="total()" [totalPages]="totalPages()"
+        (pageChange)="load($event)" (pageSizeChange)="onPageSizeChange($event)"
+      />
     </div>
   `,
   styles: [`
@@ -244,6 +250,11 @@ export class FactureListComponent implements OnInit {
   activeStatut = signal<FactureStatut | null>(null);
   loading = signal(true);
 
+  page      = signal(1);
+  pageSize  = signal(50);
+  total     = signal(0);
+  totalPages = signal(0);
+
   readonly statuts: FactureStatut[] = ['EN_ATTENTE', 'PARTIELLEMENT_PAYEE', 'PAYEE', 'ANNULEE'];
 
   filtered = computed(() => {
@@ -251,14 +262,25 @@ export class FactureListComponent implements OnInit {
     return s ? this.factures().filter(f => f.statut === s) : this.factures();
   });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.load(1); }
 
-  load(): void {
+  load(p: number): void {
+    this.page.set(p);
     this.loading.set(true);
-    this.factureService.getAll().subscribe({
-      next: list => { this.factures.set(list); this.loading.set(false); },
+    this.factureService.getAll(undefined, p, this.pageSize()).subscribe({
+      next: res => {
+        this.factures.set(res.data);
+        this.total.set(res.total);
+        this.totalPages.set(res.totalPages);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize.set(size);
+    this.load(1);
   }
 
   cfg(s: FactureStatut) { return STATUT_CONFIG[s]; }
@@ -278,7 +300,7 @@ export class FactureListComponent implements OnInit {
 
   openForm(facture?: Facture): void {
     const ref = this.dialog.open(FactureFormComponent, { width: '560px', data: facture ?? null });
-    ref.afterClosed().subscribe(saved => { if (saved) this.load(); });
+    ref.afterClosed().subscribe(saved => { if (saved) this.load(this.page()); });
   }
 
   confirmDelete(f: Facture): void {
@@ -288,7 +310,7 @@ export class FactureListComponent implements OnInit {
     ref.afterClosed().subscribe(ok => {
       if (!ok) return;
       this.factureService.delete(f.id).subscribe({
-        next: () => { this.alert.success('Facture supprimée'); this.load(); },
+        next: () => { this.alert.success('Facture supprimée'); this.load(this.page()); },
         error: () => this.alert.error('Erreur lors de la suppression'),
       });
     });

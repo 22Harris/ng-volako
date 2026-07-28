@@ -24,12 +24,21 @@ export interface GrandLivreLigne {
   lettre: string | null;
 }
 
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface GrandLivreResponse {
   account: { id: number; code: string; name: string; account_class: number };
   lines: GrandLivreLigne[];
   totalDebit: number;
   totalCredit: number;
   solde: number;
+  pagination: { total: number; page: number; pageSize: number; totalPages: number };
 }
 
 export interface BilanPoste {
@@ -80,14 +89,24 @@ export class RapportsService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getBalance(): Observable<BalanceLine[]> {
-    return this.http.get<BalanceLine[]>(`${this.api}/balance`);
+  downloadFec(exerciceId: number, format: 'txt' | 'excel' = 'txt'): Observable<Blob> {
+    const endpoint = format === 'excel' ? 'fec/excel' : 'fec';
+    return this.http.get(`${this.api}/${endpoint}`, {
+      params: { exerciceId: String(exerciceId) },
+      responseType: 'blob',
+    });
   }
 
-  getGrandLivre(accountId: number, dateFrom?: string, dateTo?: string): Observable<GrandLivreResponse> {
-    const params: Record<string, string> = {};
+  getBalance(page = 1, pageSize = 50): Observable<PaginatedResponse<BalanceLine>> {
+    return this.http.get<PaginatedResponse<BalanceLine>>(`${this.api}/balance`, {
+      params: { page: String(page), pageSize: String(pageSize) },
+    });
+  }
+
+  getGrandLivre(accountId: number, dateFrom?: string, dateTo?: string, page = 1, pageSize = 50): Observable<GrandLivreResponse> {
+    const params: Record<string, string> = { page: String(page), pageSize: String(pageSize) };
     if (dateFrom) params['dateFrom'] = dateFrom;
-    if (dateTo) params['dateTo'] = dateTo;
+    if (dateTo)   params['dateTo']   = dateTo;
     return this.http.get<GrandLivreResponse>(`${this.api}/grand-livre/${accountId}`, { params });
   }
 

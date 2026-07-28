@@ -1,6 +1,26 @@
  
 # Spécifications Frontend Angular — Gestion Financière (Comptabilité)
 
+> ## ⚠️ Document historique — NE PAS UTILISER COMME RÉFÉRENCE
+>
+> Ceci est la **spécification d'origine (v1)** du frontend. Le code a très largement
+> dépassé ce document. **La source de vérité à jour est [`CLAUDE.md`](./CLAUDE.md).**
+>
+> Principales divergences avec l'implémentation actuelle :
+>
+> - **Authentification** : les JWT sont en **cookies httpOnly** (posés par l'API), **pas** en
+>   `localStorage`, et il n'y a **pas** de header `Bearer` injecté. Le refresh est automatique
+>   (interceptor) et il existe un timer d'inactivité de 30 min + 2FA côté API.
+> - **Modèle monétaire** : les montants sont des **entiers en unités entières** d'une **devise
+>   configurable** (défaut **MGA / Ariary `Ar`** via `SettingsService`). Le pipe `cents` **ne
+>   divise plus par 100** — ce n'est plus « centimes / euros ».
+> - **Périmètre** : ~24 features réelles (tiers, factures, TVA/CA3, rapprochement bancaire,
+>   exercices fiscaux, verrouillage de périodes, budgets, objectifs, audit, utilisateurs, …),
+>   et non les 5 décrites ici.
+> - **Stack** : Angular **21** (standalone + signals), Material **M3**, tests **Vitest**.
+>
+> Le contenu ci-dessous est conservé pour mémoire / archéologie du projet.
+
 ## Table des matières
 
 1. [Vue d'ensemble](#1-vue-densemble)

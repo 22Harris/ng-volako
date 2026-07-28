@@ -12,11 +12,12 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 import { TiersFormComponent } from '../tiers-form/tiers-form.component';
 import { Tiers, TiersSolde, TiersType } from '../../../core/models/tiers.model';
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-tiers-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, MatChipsModule, MatTooltipModule, CentsPipe],
+  imports: [CommonModule, RouterModule, MatIconModule, MatButtonModule, MatChipsModule, MatTooltipModule, CentsPipe, PaginationComponent],
   template: `
     <div class="page">
 
@@ -138,6 +139,11 @@ import { CentsPipe } from '../../../shared/pipes/cents.pipe';
           }
         </div>
       }
+
+      <app-pagination
+        [page]="page()" [pageSize]="pageSize()" [total]="total()" [totalPages]="totalPages()"
+        (pageChange)="load($event)" (pageSizeChange)="onPageSizeChange($event)"
+      />
     </div>
   `,
   styles: [`
@@ -247,6 +253,11 @@ export class TiersListComponent implements OnInit {
   activeType = signal<TiersType | null>(null);
   loading = signal(true);
 
+  page      = signal(1);
+  pageSize  = signal(50);
+  total     = signal(0);
+  totalPages = signal(0);
+
   filtered = computed(() => {
     const t = this.activeType();
     return t ? this.tiers().filter(x => x.type === t) : this.tiers();
@@ -259,15 +270,26 @@ export class TiersListComponent implements OnInit {
     this.soldes().filter(s => s.type === 'FOURNISSEUR').reduce((sum, s) => sum + s.solde, 0)
   );
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void { this.load(1); }
 
-  load(): void {
+  load(p: number): void {
+    this.page.set(p);
     this.loading.set(true);
-    this.tiersService.getAll().subscribe({
-      next: list => { this.tiers.set(list); this.loading.set(false); },
+    this.tiersService.getAll(p, this.pageSize()).subscribe({
+      next: res => {
+        this.tiers.set(res.data);
+        this.total.set(res.total);
+        this.totalPages.set(res.totalPages);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
     this.tiersService.getSoldes().subscribe({ next: s => this.soldes.set(s), error: () => {} });
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize.set(size);
+    this.load(1);
   }
 
   countByType(type: TiersType): number {
@@ -285,7 +307,7 @@ export class TiersListComponent implements OnInit {
       panelClass: 'no-padding-dialog',
       data: tiers ?? null,
     });
-    ref.afterClosed().subscribe(saved => { if (saved) this.load(); });
+    ref.afterClosed().subscribe(saved => { if (saved) this.load(this.page()); });
   }
 
   confirmDelete(tiers: Tiers): void {
@@ -295,7 +317,7 @@ export class TiersListComponent implements OnInit {
     ref.afterClosed().subscribe(ok => {
       if (!ok) return;
       this.tiersService.delete(tiers.id).subscribe({
-        next: () => { this.alert.success('Tiers supprimé'); this.load(); },
+        next: () => { this.alert.success('Tiers supprimé'); this.load(this.page()); },
         error: () => this.alert.error('Erreur lors de la suppression'),
       });
     });

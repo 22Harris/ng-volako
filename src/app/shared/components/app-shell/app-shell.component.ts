@@ -1,5 +1,8 @@
-import { Component, inject, computed, signal, OnInit } from '@angular/core';
+import { Component, inject, computed, signal, OnInit, HostListener, ViewChild, ElementRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterModule, Router } from '@angular/router';
+import { KeyboardShortcutsService } from '../../../core/services/keyboard-shortcuts.service';
+import { KeyboardShortcutsHelpComponent } from '../keyboard-shortcuts-help/keyboard-shortcuts-help.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -43,12 +46,15 @@ interface SearchResult {
     MatButtonModule,
     MatTooltipModule,
     AlertComponent,
+    KeyboardShortcutsHelpComponent,
   ],
   template: `
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
+
     <div class="shell">
 
       <!-- ── Sidebar ── -->
-      <aside class="sidebar" [class.collapsed]="collapsed()">
+      <aside class="sidebar" [class.collapsed]="collapsed()" aria-label="Barre latérale de navigation">
 
         <!-- Logo -->
         <div class="sidebar-logo">
@@ -68,15 +74,17 @@ interface SearchResult {
         <!-- Collapse Toggle -->
         <button mat-icon-button class="sidebar-toggle"
           (click)="collapsed.set(!collapsed())"
+          [attr.aria-label]="collapsed() ? 'Développer la barre latérale' : 'Réduire la barre latérale'"
+          [attr.aria-expanded]="!collapsed()"
           [matTooltip]="collapsed() ? 'Développer' : 'Réduire'"
           matTooltipPosition="right">
-          <mat-icon>{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+          <mat-icon aria-hidden="true">{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
         </button>
 
         <div class="sidebar-divider"></div>
 
         <!-- Navigation -->
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="Navigation principale">
 
           <!-- Dashboard -->
           <a class="nav-item" routerLink="/dashboard" routerLinkActive="active"
@@ -111,6 +119,12 @@ interface SearchResult {
                 <mat-icon class="nav-icon">lock_clock</mat-icon>
                 <span class="nav-label">Verrouillage</span>
               </a>
+              @if (canSeeFiscalYears()) {
+              <a class="nav-item nav-sub-item" routerLink="/fiscal-years" routerLinkActive="active">
+                <mat-icon class="nav-icon">calendar_today</mat-icon>
+                <span class="nav-label">Exercices fiscaux</span>
+              </a>
+              }
             </div></div>
 
             <!-- ── Groupe Tiers & Facturation ── -->
@@ -193,11 +207,11 @@ interface SearchResult {
               </a>
             </div></div>
 
-            <!-- ── Admin : Utilisateurs ── -->
+            <!-- ── Admin : Audit uniquement ── -->
             @if (isAdmin()) {
-              <a class="nav-item nav-item-admin" routerLink="/users" routerLinkActive="active">
-                <mat-icon class="nav-icon">manage_accounts</mat-icon>
-                <span class="nav-label">Utilisateurs</span>
+              <a class="nav-item nav-item-admin" routerLink="/audit-log" routerLinkActive="active">
+                <mat-icon class="nav-icon">history</mat-icon>
+                <span class="nav-label">Journal d'audit</span>
               </a>
             }
 
@@ -208,6 +222,9 @@ interface SearchResult {
             <a class="nav-item" routerLink="/journal" routerLinkActive="active" matTooltip="Journal" matTooltipPosition="right"><mat-icon class="nav-icon">receipt_long</mat-icon></a>
             <a class="nav-item" routerLink="/journaux" routerLinkActive="active" matTooltip="Journaux" matTooltipPosition="right"><mat-icon class="nav-icon">import_contacts</mat-icon></a>
             <a class="nav-item" routerLink="/periode-locks" routerLinkActive="active" matTooltip="Verrouillage" matTooltipPosition="right"><mat-icon class="nav-icon">lock_clock</mat-icon></a>
+            @if (canSeeFiscalYears()) {
+            <a class="nav-item" routerLink="/fiscal-years" routerLinkActive="active" matTooltip="Exercices fiscaux" matTooltipPosition="right"><mat-icon class="nav-icon">calendar_today</mat-icon></a>
+            }
             <div class="nav-divider"></div>
             <a class="nav-item" routerLink="/accounts" routerLinkActive="active" matTooltip="Comptes" matTooltipPosition="right"><mat-icon class="nav-icon">account_balance_wallet</mat-icon></a>
             <a class="nav-item" routerLink="/tiers" routerLinkActive="active" matTooltip="Tiers" matTooltipPosition="right"><mat-icon class="nav-icon">contacts</mat-icon></a>
@@ -227,7 +244,7 @@ interface SearchResult {
             <a class="nav-item nav-item-alert" routerLink="/alertes" routerLinkActive="active" matTooltip="Alertes" matTooltipPosition="right"><mat-icon class="nav-icon">notifications_active</mat-icon></a>
             @if (isAdmin()) {
             <div class="nav-divider"></div>
-            <a class="nav-item nav-item-admin" routerLink="/users" routerLinkActive="active" matTooltip="Utilisateurs" matTooltipPosition="right"><mat-icon class="nav-icon">manage_accounts</mat-icon></a>
+            <a class="nav-item nav-item-admin" routerLink="/audit-log" routerLinkActive="active" matTooltip="Journal d'audit" matTooltipPosition="right"><mat-icon class="nav-icon">history</mat-icon></a>
             }
 
           }
@@ -236,8 +253,20 @@ interface SearchResult {
 
         <div class="sidebar-spacer"></div>
 
-        <!-- Lien Paramètres + Tutoriels -->
+        <!-- Lien Profil + Utilisateurs (admin) + Paramètres + Tutoriels -->
         <div class="sidebar-tuto-wrap">
+          <a class="nav-item nav-item-tuto" routerLink="/profile" routerLinkActive="active"
+            [matTooltip]="collapsed() ? 'Mon profil' : ''" matTooltipPosition="right">
+            <mat-icon class="nav-icon">account_circle</mat-icon>
+            @if (!collapsed()) { <span class="nav-label">Mon profil</span> }
+          </a>
+          @if (isAdmin()) {
+            <a class="nav-item nav-item-tuto" routerLink="/users" routerLinkActive="active"
+              [matTooltip]="collapsed() ? 'Utilisateurs' : ''" matTooltipPosition="right">
+              <mat-icon class="nav-icon">manage_accounts</mat-icon>
+              @if (!collapsed()) { <span class="nav-label">Utilisateurs</span> }
+            </a>
+          }
           <a class="nav-item nav-item-tuto" routerLink="/settings" routerLinkActive="active"
             [matTooltip]="collapsed() ? 'Paramètres' : ''" matTooltipPosition="right">
             <mat-icon class="nav-icon">settings</mat-icon>
@@ -263,8 +292,9 @@ interface SearchResult {
               <span class="user-role">{{ roleLabel() }}</span>
             </div>
             <button mat-icon-button class="logout-btn" (click)="logout()"
+              aria-label="Se déconnecter"
               matTooltip="Déconnexion" matTooltipPosition="right">
-              <mat-icon>logout</mat-icon>
+              <mat-icon aria-hidden="true">logout</mat-icon>
             </button>
           }
         </div>
@@ -279,25 +309,32 @@ interface SearchResult {
             <div class="search-box" [class.focused]="searchFocused()">
               <mat-icon class="search-ico">search</mat-icon>
               <input
+                #searchInput
                 class="search-input"
+                type="search"
                 placeholder="Rechercher un compte, une opération, un événement…"
+                aria-label="Rechercher dans l'application"
+                [attr.aria-expanded]="searchFocused() && searchResults().length > 0"
+                aria-autocomplete="list"
+                aria-haspopup="listbox"
                 [(ngModel)]="searchQuery"
                 (input)="onSearch()"
                 (focus)="searchFocused.set(true)"
                 (keydown.escape)="closeSearch()"
               />
               @if (searchQuery) {
-                <button class="search-clear" (click)="clearSearch()">
-                  <mat-icon>close</mat-icon>
+                <button class="search-clear" aria-label="Effacer la recherche" (click)="clearSearch()">
+                  <mat-icon aria-hidden="true">close</mat-icon>
                 </button>
               }
             </div>
 
             <!-- Résultats dropdown -->
             @if (searchFocused() && searchResults().length > 0) {
-              <div class="search-dropdown">
+              <div class="search-dropdown" role="listbox" aria-label="Résultats de recherche">
                 @for (result of searchResults(); track result.label + result.type) {
                   <a class="search-result-item" [routerLink]="result.link"
+                     role="option" [attr.aria-label]="result.label + ' — ' + result.sub"
                      (click)="clearSearch()">
                     <div class="sri-icon" [class]="'sri-' + result.type">
                       <mat-icon>{{ result.icon }}</mat-icon>
@@ -320,15 +357,35 @@ interface SearchResult {
           </div>
         </header>
 
-        <main class="content">
+        <main id="main-content" class="content" tabindex="-1">
           <app-alert></app-alert>
           <router-outlet></router-outlet>
         </main>
       </div>
 
     </div>
+
+    @if (shortcuts.helpVisible()) {
+      <app-keyboard-shortcuts-help (close)="shortcuts.helpVisible.set(false)" />
+    }
   `,
   styles: [`
+    /* ── Skip link (RGAA 12.6) ── */
+    .skip-link {
+      position: absolute; left: -10000px; top: 0;
+      width: 1px; height: 1px; overflow: hidden;
+      background: #0d47a1; color: white; font-weight: 700; font-size: 14px;
+      padding: 8px 20px; border-radius: 6px; text-decoration: none; z-index: 10000;
+    }
+    .skip-link:focus-visible {
+      position: fixed; left: 8px; top: 8px;
+      width: auto; height: auto;
+      outline: 3px solid white; outline-offset: 2px;
+    }
+
+    /* ── Global focus indicator (RGAA 10.7) ── */
+    :focus-visible { outline: 2px solid #1565c0; outline-offset: 2px; }
+
     :host { display: block; height: 100vh; }
 
     .shell {
@@ -493,6 +550,9 @@ interface SearchResult {
     .sidebar-tuto-wrap {
       padding: 0 8px 8px;
       border-bottom: 1px solid rgba(255,255,255,.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .nav-item-tuto {
       background: rgba(255,255,255,.06);
@@ -655,16 +715,32 @@ interface SearchResult {
   `]
 })
 export class AppShellComponent implements OnInit {
-  readonly auth   = inject(AuthService);
-  private readonly router          = inject(Router);
-  private readonly accountService  = inject(AccountService);
+  readonly auth      = inject(AuthService);
+  readonly shortcuts = inject(KeyboardShortcutsService);
+  private readonly router           = inject(Router);
+  private readonly accountService   = inject(AccountService);
   private readonly operationService = inject(OperationService);
   private readonly evenementService = inject(EvenementService);
 
+  @ViewChild('searchInput') private readonly searchInputRef!: ElementRef<HTMLInputElement>;
+
+  constructor() {
+    this.shortcuts.focusSearch$.pipe(takeUntilDestroyed()).subscribe(() => {
+      this.searchFocused.set(true);
+      setTimeout(() => this.searchInputRef?.nativeElement.focus());
+    });
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent): void {
+    this.shortcuts.handleKeyDown(event);
+  }
+
   collapsed = signal(false);
 
-  isAdmin       = computed(() => this.auth.currentUser()?.role === 'ADMIN');
-  canSeeRapports = computed(() => this.auth.currentUser()?.role !== 'ASSISTANT');
+  isAdmin            = computed(() => this.auth.currentUser()?.role === 'ADMIN');
+  canSeeRapports     = computed(() => this.auth.currentUser()?.role !== 'ASSISTANT');
+  canSeeFiscalYears  = computed(() => ['ADMIN', 'DAF', 'CHEF_COMPTABLE'].includes(this.auth.currentUser()?.role ?? ''));
   roleLabel     = computed(() => {
     const role = this.auth.currentUser()?.role;
     return role ? (ROLE_LABELS[role] ?? role) : 'Utilisateur';
@@ -678,7 +754,11 @@ export class AppShellComponent implements OnInit {
   });
 
   toggleGroup(group: string): void {
-    this.openGroups.update(g => ({ ...g, [group]: !g[group] }));
+    this.openGroups.update(g => {
+      const isOpen = g[group];
+      const allClosed = Object.fromEntries(Object.keys(g).map(k => [k, false]));
+      return { ...allClosed, [group]: !isOpen };
+    });
   }
 
   // Search state

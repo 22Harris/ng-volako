@@ -31,8 +31,8 @@ const ROLES: { value: Role; label: string }[] = [
           <mat-icon>{{ data.user ? 'edit' : 'person_add' }}</mat-icon>
         </div>
         <div class="dlg-titles">
-          <div class="dlg-title">{{ data.user ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur' }}</div>
-          <div class="dlg-sub">{{ data.user ? data.user.email : 'Renseigner les informations' }}</div>
+          <div class="dlg-title">{{ data.user ? "Modifier l'utilisateur" : "Nouvel utilisateur" }}</div>
+          <div class="dlg-sub">{{ data.user ? data.user.email : "Renseigner les informations" }}</div>
         </div>
         <button class="dlg-close" type="button" (click)="cancel()">
           <mat-icon>close</mat-icon>

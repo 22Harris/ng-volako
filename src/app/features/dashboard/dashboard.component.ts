@@ -6,16 +6,24 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { AccountService } from '../../core/services/account.service';
 import { OperationService } from '../../core/services/operation.service';
+import { FactureService } from '../../core/services/facture.service';
+import { EvenementService } from '../../core/services/evenement.service';
+import { BudgetService } from '../../core/services/budget.service';
 import { AuthService } from '../../core/services/auth.service';
 import { AccountFormComponent } from '../accounts/account-form/account-form.component';
 import { OperationFormComponent } from '../operations/operation-form/operation-form.component';
 import { OperationViewDialogComponent } from '../operations/operation-view-dialog/operation-view-dialog.component';
 import { Account } from '../../core/models/account.model';
+import { Facture } from '../../core/models/facture.model';
+import { Evenement } from '../../core/models/evenement.model';
+import { BudgetLigne } from '../../core/models/budget.model';
 import { Operation } from '../../core/models/operation.model';
 import { Role } from '../../core/models/auth.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { OperationTypePipe } from '../../shared/pipes/operation-type.pipe';
 import { OPERATION_TYPE_CONFIG } from '../../core/utils/operation-type.utils';
+
+// ── Static maps ──────────────────────────────────────────────────────────────
 
 const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
   1: { name: 'Capitaux permanents', bg: '#e3f2fd', fg: '#1565c0' },
@@ -36,6 +44,13 @@ const ROLE_LABELS: Record<Role, string> = {
   ASSISTANT:      'Assistant',
   AUDITEUR:       'Auditeur',
 };
+
+const MONTH_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
+// ── Local interfaces ──────────────────────────────────────────────────────────
+
+interface SparkPoint { month: string; total: number; }
+interface BudgetProgress { libelle: string; categorie: string; type: 'CHARGE' | 'PRODUIT'; prevu: number; reel: number; pct: number; }
 
 @Component({
   selector: 'app-dashboard',
@@ -69,7 +84,7 @@ const ROLE_LABELS: Record<Role, string> = {
         }
       </div>
 
-      <!-- ── KPI Cards ── -->
+      <!-- ── KPI Row 1 ── -->
       <div class="kpi-row">
 
         <div class="kpi-card kpi-blue">
@@ -113,6 +128,44 @@ const ROLE_LABELS: Record<Role, string> = {
             <div class="kpi-value">{{ accounts().length }}</div>
             <div class="kpi-label">Comptes actifs</div>
             <div class="kpi-sub">Plan comptable</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── KPI Row 2 (enrichi) ── -->
+      <div class="kpi-row kpi-row-2">
+
+        <div class="kpi-card" [class.kpi-teal]="tresorerie() >= 0" [class.kpi-red]="tresorerie() < 0">
+          <div class="kpi-icon-wrap">
+            <mat-icon>savings</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ tresorerie() | cents }}</div>
+            <div class="kpi-label">Trésorerie</div>
+            <div class="kpi-sub">Classe 5</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" [class.kpi-amber]="facturesImpayees().length > 0" [class.kpi-green]="facturesImpayees().length === 0">
+          <div class="kpi-icon-wrap">
+            <mat-icon>request_quote</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ facturesImpayees().length }}</div>
+            <div class="kpi-label">Factures impayées</div>
+            <div class="kpi-sub">{{ facturesImpayeesTotal() | cents }}</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" [class.kpi-red]="facturesEnRetard().length > 0" [class.kpi-green]="facturesEnRetard().length === 0">
+          <div class="kpi-icon-wrap">
+            <mat-icon>warning</mat-icon>
+          </div>
+          <div class="kpi-body">
+            <div class="kpi-value">{{ facturesEnRetard().length }}</div>
+            <div class="kpi-label">Factures en retard</div>
+            <div class="kpi-sub">Échéance dépassée</div>
           </div>
         </div>
 
@@ -219,6 +272,149 @@ const ROLE_LABELS: Record<Role, string> = {
           </div>
         </div>
 
+      </div>
+
+      <!-- ── Grille enrichie ── -->
+      <div class="dash-grid dash-grid-enrich">
+
+        <!-- Factures en retard -->
+        <div class="card">
+          <div class="card-header">
+            <mat-icon class="header-icon icon-red">event_busy</mat-icon>
+            <h2>Factures en retard</h2>
+            <a routerLink="/factures" class="see-all">Voir tout →</a>
+          </div>
+
+          @if (facturesEnRetard().length === 0) {
+            <div class="empty-state empty-state-sm">
+              <mat-icon class="icon-green">check_circle</mat-icon>
+              <p>Aucune facture en retard</p>
+            </div>
+          } @else {
+            <div class="retard-list">
+              @for (f of facturesEnRetard().slice(0, 4); track f.id) {
+                <div class="retard-row">
+                  <div class="retard-info">
+                    <span class="retard-num">{{ f.numero }}</span>
+                    <span class="retard-tiers">{{ f.tiersNom ?? '—' }}</span>
+                  </div>
+                  <div class="retard-right">
+                    <span class="retard-amount">{{ f.resteAPayer | cents }}</span>
+                    <span class="retard-days">{{ daysOverdue(f.dateEcheance) }}j</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Événements à venir -->
+        <div class="card">
+          <div class="card-header">
+            <mat-icon class="header-icon icon-amber">event</mat-icon>
+            <h2>Événements à venir</h2>
+            <a routerLink="/evenements" class="see-all">Voir tout →</a>
+          </div>
+
+          @if (evenementsAVenir().length === 0) {
+            <div class="empty-state empty-state-sm">
+              <mat-icon>calendar_today</mat-icon>
+              <p>Aucun événement à venir</p>
+            </div>
+          } @else {
+            <div class="evt-list">
+              @for (e of evenementsAVenir(); track e.id) {
+                <div class="evt-row">
+                  <div class="evt-date-badge">
+                    <span class="evt-day">{{ e.dateEcheance | date:'dd' }}</span>
+                    <span class="evt-mon">{{ e.dateEcheance | date:'MMM' : '' : 'fr-FR' }}</span>
+                  </div>
+                  <div class="evt-info">
+                    <span class="evt-titre">{{ e.titre }}</span>
+                    <span class="evt-cat">{{ e.categorie }}</span>
+                  </div>
+                  <span class="evt-amount">{{ e.montant | cents }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Budget du mois -->
+        <div class="card">
+          <div class="card-header">
+            <mat-icon class="header-icon icon-purple">donut_large</mat-icon>
+            <h2>Budget du mois</h2>
+            <a routerLink="/budget" class="see-all">Gérer →</a>
+          </div>
+
+          @if (budgetProgress().length === 0) {
+            <div class="empty-state empty-state-sm">
+              <mat-icon>tune</mat-icon>
+              <p>Aucun budget défini pour ce mois</p>
+            </div>
+          } @else {
+            <div class="budget-list">
+              @for (b of budgetProgress(); track b.libelle) {
+                <div class="budget-row">
+                  <div class="budget-meta">
+                    <span class="budget-label">{{ b.libelle }}</span>
+                    <span class="budget-pct" [class.over-budget]="b.pct >= 100">{{ b.pct }}%</span>
+                  </div>
+                  <div class="budget-track">
+                    <div class="budget-bar"
+                      [style.width.%]="b.pct"
+                      [class.budget-bar-charge]="b.type === 'CHARGE'"
+                      [class.budget-bar-produit]="b.type === 'PRODUIT'"
+                      [class.budget-bar-over]="b.pct >= 100">
+                    </div>
+                  </div>
+                  <div class="budget-amounts">
+                    <span>{{ b.reel | cents }}</span>
+                    <span class="budget-prevu">/ {{ b.prevu | cents }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- ── Sparkline tendance mensuelle ── -->
+      <div class="card spark-card">
+        <div class="card-header">
+          <mat-icon class="header-icon">show_chart</mat-icon>
+          <h2>Tendance mensuelle — montant des opérations</h2>
+        </div>
+
+        @if (sparklineData().length > 0 && sparklineHasData()) {
+          <div class="spark-wrap">
+            <svg class="spark-svg" viewBox="0 0 280 60" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#1565c0" stop-opacity="0.18"/>
+                  <stop offset="100%" stop-color="#1565c0" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <polygon [attr.points]="sparklineArea()" fill="url(#sparkGrad)"/>
+              <polyline [attr.points]="sparklinePoints()" fill="none" stroke="#1565c0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              @for (pt of sparklineDots(); track $index) {
+                <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="3" fill="#1565c0"/>
+              }
+            </svg>
+            <div class="spark-labels">
+              @for (lbl of sparklineLabels(); track $index) {
+                <span>{{ lbl }}</span>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="empty-state empty-state-sm">
+            <mat-icon>show_chart</mat-icon>
+            <p>Pas encore de données pour les 6 derniers mois</p>
+          </div>
+        }
       </div>
 
       <!-- ── Quick Actions ── -->
@@ -344,6 +540,7 @@ const ROLE_LABELS: Record<Role, string> = {
 
     /* ── KPI ── */
     .kpi-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi-row-2 { margin-top: -12px; }
     .kpi-card {
       background: white; border-radius: 16px; padding: 20px;
       display: flex; align-items: center; gap: 16px;
@@ -374,10 +571,15 @@ const ROLE_LABELS: Record<Role, string> = {
       h2 { font-size:15px; font-weight:700; color:#0d1b2a; margin:0; flex:1; }
     }
     .header-icon { color:#1565c0; font-size:20px; width:20px; height:20px; }
+    .icon-red    { color:#c62828 !important; }
+    .icon-amber  { color:#f57f17 !important; }
+    .icon-purple { color:#7b1fa2 !important; }
+    .icon-green  { color:#2e7d32 !important; }
     .see-all { font-size:13px; color:#1565c0; text-decoration:none; font-weight:600; &:hover{text-decoration:underline;} }
 
-    /* ── Grid 3 colonnes ── */
+    /* ── Grid ── */
     .dash-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px; }
+    .dash-grid-enrich { margin-top: 0; }
 
     /* ── Soldes par classe ── */
     .class-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -400,6 +602,11 @@ const ROLE_LABELS: Record<Role, string> = {
       text-align:center; padding:32px 16px; color:#90a4ae;
       mat-icon { font-size:40px; width:40px; height:40px; margin-bottom:8px; }
       p { margin:0 0 16px; font-size:14px; }
+    }
+    .empty-state-sm {
+      padding: 20px 16px;
+      mat-icon { font-size:28px; width:28px; height:28px; }
+      p { margin:0; font-size:13px; }
     }
 
     /* ── Graphique barres ── */
@@ -433,6 +640,65 @@ const ROLE_LABELS: Record<Role, string> = {
     .bc-leg-dot  { width:8px; height:8px; border-radius:50%; }
     .bc-leg-pos  { .bc-leg-dot{ background:#2e7d32 } }
     .bc-leg-neg  { .bc-leg-dot{ background:#ef5350 } }
+
+    /* ── Factures en retard ── */
+    .retard-list { display:flex; flex-direction:column; gap:6px; }
+    .retard-row {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 12px; border-radius:10px; background:#fff5f5;
+      border:1px solid #fecaca;
+    }
+    .retard-info { display:flex; flex-direction:column; min-width:0; }
+    .retard-num  { font-size:13px; font-weight:600; color:#0d1b2a; }
+    .retard-tiers{ font-size:11px; color:#78909c; }
+    .retard-right{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+    .retard-amount{ font-size:13px; font-weight:700; color:#c62828; }
+    .retard-days { font-size:11px; font-weight:600; color:#ef5350; background:#fee2e2; padding:1px 6px; border-radius:8px; }
+
+    /* ── Événements à venir ── */
+    .evt-list { display:flex; flex-direction:column; gap:8px; }
+    .evt-row  {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 12px; border-radius:10px;
+      background:#f8fafc; border:1px solid #e8edf2;
+    }
+    .evt-date-badge {
+      width:36px; height:36px; border-radius:8px; background:#e3f2fd; color:#1565c0;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      flex-shrink:0;
+    }
+    .evt-day { font-size:14px; font-weight:800; line-height:1; }
+    .evt-mon { font-size:9px; font-weight:600; text-transform:uppercase; }
+    .evt-info{ flex:1; min-width:0; display:flex; flex-direction:column; }
+    .evt-titre{ font-size:13px; font-weight:600; color:#0d1b2a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .evt-cat  { font-size:11px; color:#90a4ae; }
+    .evt-amount{ font-size:13px; font-weight:700; color:#0d1b2a; flex-shrink:0; }
+
+    /* ── Budget du mois ── */
+    .budget-list { display:flex; flex-direction:column; gap:12px; }
+    .budget-row  { display:flex; flex-direction:column; gap:4px; }
+    .budget-meta { display:flex; justify-content:space-between; align-items:center; }
+    .budget-label{ font-size:12px; font-weight:600; color:#0d1b2a; }
+    .budget-pct  { font-size:11px; font-weight:700; color:#546e7a; &.over-budget{color:#c62828} }
+    .budget-track{ background:#f0f4f8; border-radius:6px; height:7px; overflow:hidden; }
+    .budget-bar  {
+      height:100%; border-radius:6px;
+      transition:width .5s cubic-bezier(.4,0,.2,1); min-width:3px;
+    }
+    .budget-bar-charge  { background:#f57f17; }
+    .budget-bar-produit { background:#2e7d32; }
+    .budget-bar-over    { background:#c62828 !important; }
+    .budget-amounts { display:flex; gap:4px; font-size:11px; color:#546e7a; }
+    .budget-prevu   { color:#b0bec5; }
+
+    /* ── Sparkline ── */
+    .spark-card { margin-bottom: 24px; }
+    .spark-wrap { display:flex; flex-direction:column; gap:8px; }
+    .spark-svg  { width:100%; height:64px; display:block; }
+    .spark-labels {
+      display:flex; justify-content:space-between;
+      font-size:11px; color:#90a4ae; padding:0 2px;
+    }
 
     /* ── Quick Actions ── */
     .quick-section { margin-top:4px; }
@@ -476,11 +742,18 @@ const ROLE_LABELS: Record<Role, string> = {
 export class DashboardComponent implements OnInit {
   private readonly accountService   = inject(AccountService);
   private readonly operationService = inject(OperationService);
+  private readonly factureService   = inject(FactureService);
+  private readonly evenementService = inject(EvenementService);
+  private readonly budgetService    = inject(BudgetService);
   private readonly auth             = inject(AuthService);
   private readonly dialog           = inject(MatDialog);
 
   accounts       = signal<Account[]>([]);
+  allOperations  = signal<Operation[]>([]);
   lastOperations = signal<Operation[]>([]);
+  factures       = signal<Facture[]>([]);
+  evenements     = signal<Evenement[]>([]);
+  budgetLignes   = signal<BudgetLigne[]>([]);
 
   today = new Date();
 
@@ -493,18 +766,88 @@ export class DashboardComponent implements OnInit {
   isAuditeur = computed(() => this.role() === 'AUDITEUR');
 
   canCreateOperation = computed(() => this.role() !== 'AUDITEUR');
-  canCreateAccount   = computed(() =>
-    ['ADMIN', 'DAF', 'CHEF_COMPTABLE', 'COMPTABLE'].includes(this.role())
-  );
+  canCreateAccount   = computed(() => this.role() === 'ADMIN');
 
-  // ── Données ─────────────────────────────────────────────────────────────────
+  // ── KPI existants ───────────────────────────────────────────────────────────
   classItems = Object.entries(CLASS_META).map(([num, meta]) => ({ num: +num, ...meta }));
 
+  // ── KPI enrichis ────────────────────────────────────────────────────────────
+  tresorerie = computed(() => this.getBalanceByClass(5));
+
+  facturesImpayees = computed(() =>
+    this.factures().filter(f => f.statut !== 'PAYEE' && f.statut !== 'ANNULEE')
+  );
+
+  facturesImpayeesTotal = computed(() =>
+    this.facturesImpayees().reduce((s, f) => s + f.resteAPayer, 0)
+  );
+
+  facturesEnRetard = computed(() => {
+    const todayIso = this.today.toISOString().slice(0, 10);
+    return this.facturesImpayees().filter(f => f.dateEcheance != null && f.dateEcheance < todayIso);
+  });
+
+  evenementsAVenir = computed(() => {
+    const todayIso = this.today.toISOString().slice(0, 10);
+    return this.evenements()
+      .filter(e => e.statut === 'EN_ATTENTE' && e.dateEcheance >= todayIso)
+      .sort((a, b) => a.dateEcheance.localeCompare(b.dateEcheance))
+      .slice(0, 5);
+  });
+
+  budgetProgress = computed<BudgetProgress[]>(() =>
+    this.budgetLignes().slice(0, 6).map(l => ({
+      libelle:   l.libelle,
+      categorie: l.categorie,
+      type:      l.type,
+      prevu:     l.montantPrevu,
+      reel:      l.montantReel ?? 0,
+      pct:       l.montantPrevu > 0
+        ? Math.min(Math.round(((l.montantReel ?? 0) / l.montantPrevu) * 100), 100)
+        : 0,
+    }))
+  );
+
+  // ── Sparkline ───────────────────────────────────────────────────────────────
+  sparklineData = computed<SparkPoint[]>(() => {
+    const months = this.lastSixMonths();
+    const ops    = this.allOperations();
+    return months.map(m => ({
+      month: m,
+      total: ops
+        .filter(o => o.date.slice(0, 7) === m)
+        .reduce((s, o) => s + o.amount, 0),
+    }));
+  });
+
+  sparklineHasData = computed(() => this.sparklineData().some(d => d.total > 0));
+  sparklinePoints  = computed(() => this.computePolylinePoints(this.sparklineData()));
+  sparklineArea    = computed(() => this.computeAreaPoints(this.sparklineData()));
+  sparklineDots    = computed(() => this.computeDots(this.sparklineData()));
+  sparklineLabels  = computed(() =>
+    this.sparklineData().map(d => MONTH_SHORT[Number.parseInt(d.month.slice(5), 10) - 1] ?? d.month.slice(5))
+  );
+
+  // ── Chargement ──────────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.accountService.getAll().subscribe({ next: list => this.accounts.set(list), error: () => {} });
-    this.operationService.getAll().subscribe({ next: list => this.lastOperations.set(list.slice(0, 5)), error: () => {} });
+    this.operationService.getAll().subscribe({
+      next: list => { this.allOperations.set(list); this.lastOperations.set(list.slice(0, 5)); },
+      error: () => {},
+    });
+    this.factureService.getAll().subscribe({ next: res => this.factures.set(res.data), error: () => {} });
+    this.evenementService.getAll().subscribe({ next: list => this.evenements.set(list), error: () => {} });
+    this.budgetService.getAll().subscribe({
+      next: list => {
+        const now    = this.today;
+        const budget = list.find(b => b.exercice === now.getFullYear() && b.mois === now.getMonth() + 1);
+        this.budgetLignes.set(budget?.lignes ?? []);
+      },
+      error: () => {},
+    });
   }
 
+  // ── Helpers comptables ───────────────────────────────────────────────────────
   getBalanceByClass(cls: number): number {
     return this.accounts()
       .filter(a => a.class === cls)
@@ -535,6 +878,49 @@ export class DashboardComponent implements OnInit {
     });
   }
 
+  daysOverdue(dateEcheance: string | undefined): number {
+    if (dateEcheance == null) return 0;
+    return Math.max(0, Math.floor((this.today.getTime() - new Date(dateEcheance).getTime()) / 86_400_000));
+  }
+
+  // ── Sparkline helpers ────────────────────────────────────────────────────────
+  private lastSixMonths(): string[] {
+    const months: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(this.today.getFullYear(), this.today.getMonth() - i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return months;
+  }
+
+  private computePolylinePoints(data: SparkPoint[]): string {
+    if (data.length < 2) return '';
+    const max = Math.max(...data.map(d => d.total), 1);
+    const W = 280, H = 48;
+    return data.map((d, i) => {
+      const x = Math.round(i * W / (data.length - 1));
+      const y = Math.round(H - (Math.max(d.total, 0) / max * H));
+      return `${x},${y}`;
+    }).join(' ');
+  }
+
+  private computeAreaPoints(data: SparkPoint[]): string {
+    if (data.length < 2) return '';
+    const line = this.computePolylinePoints(data);
+    return `0,48 ${line} 280,48`;
+  }
+
+  private computeDots(data: SparkPoint[]): { x: number; y: number }[] {
+    if (data.length < 2) return [];
+    const max = Math.max(...data.map(d => d.total), 1);
+    const W = 280, H = 48;
+    return data.map((d, i) => ({
+      x: Math.round(i * W / (data.length - 1)),
+      y: Math.round(H - (Math.max(d.total, 0) / max * H)),
+    }));
+  }
+
+  // ── Dialogs ──────────────────────────────────────────────────────────────────
   openOperationDetail(operationId: number): void {
     this.dialog.open(OperationViewDialogComponent, {
       data: { operationId },
@@ -549,9 +935,10 @@ export class DashboardComponent implements OnInit {
     });
     ref.afterClosed().subscribe(saved => {
       if (saved) {
-        this.operationService.getAll().subscribe(list =>
-          this.lastOperations.set(list.slice(0, 5))
-        );
+        this.operationService.getAll().subscribe(list => {
+          this.allOperations.set(list);
+          this.lastOperations.set(list.slice(0, 5));
+        });
       }
     });
   }

@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { JournalEntry, CreateJournalEntryDto, UpdateJournalEntryDto } from '../models/journal-entry.model';
+import { PaginatedResponse } from '../models/paginated.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -10,9 +11,12 @@ export class JournalEntryService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll(operationId?: number): Observable<JournalEntry[]> {
-    const params = operationId !== undefined ? `?operationId=${operationId}` : '';
-    return this.http.get<JournalEntry[]>(`${this.api}${params}`);
+  getAll(operationId?: number, page?: number, pageSize?: number): Observable<PaginatedResponse<JournalEntry>> {
+    let params = new HttpParams();
+    if (operationId !== undefined) params = params.set('operationId', operationId);
+    if (page !== undefined)        params = params.set('page', page);
+    if (pageSize !== undefined)    params = params.set('pageSize', pageSize);
+    return this.http.get<PaginatedResponse<JournalEntry>>(this.api, { params });
   }
 
   getById(id: number): Observable<JournalEntry> {
@@ -41,5 +45,13 @@ export class JournalEntryService {
 
   verrouiller(id: number): Observable<JournalEntry> {
     return this.http.patch<JournalEntry>(`${this.api}/${id}/verrouiller`, {});
+  }
+
+  lettrer(lineIds: number[]): Observable<{ lettre: string }> {
+    return this.http.post<{ lettre: string }>(`${this.api}/lettrage`, { lineIds });
+  }
+
+  delettrer(lineIds: number[]): Observable<void> {
+    return this.http.delete<void>(`${this.api}/lettrage`, { body: { lineIds } });
   }
 }

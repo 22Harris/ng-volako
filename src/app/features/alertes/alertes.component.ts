@@ -348,7 +348,7 @@ export class AlertesComponent implements OnInit {
   ngOnInit(): void {
     this.accountService.getAll().subscribe(l => this.accounts.set(l));
     this.evenService.getAll().subscribe(l => this.evenements.set(l));
-    this.journalService.getAll().subscribe(l => this.entries.set(l));
+    this.journalService.getAll().subscribe(res => this.entries.set(res.data));
   }
 
   /* ── Balance helpers ── */

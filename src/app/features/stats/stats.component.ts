@@ -522,7 +522,7 @@ export class StatsComponent implements OnInit {
 
   ngOnInit(): void {
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
-    this.journalService.getAll().subscribe(list => this.entries.set(list));
+    this.journalService.getAll().subscribe(res => this.entries.set(res.data));
     this.opService.getAll().subscribe(list => this.operations.set(list));
     this.evenService.getAll().subscribe(list => this.evenements.set(list));
   }

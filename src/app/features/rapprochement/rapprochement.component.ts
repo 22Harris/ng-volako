@@ -7,7 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RapprochementService } from '../../core/services/rapprochement.service';
 import { AlertService } from '../../shared/components/alert/alert.service';
-import { ReleveImport, LigneReleve } from '../../core/models/rapprochement.model';
+import { ReleveImport, LigneReleve, MatchCandidate } from '../../core/models/rapprochement.model';
 
 type View = 'liste' | 'detail';
 
@@ -191,9 +191,31 @@ type View = 'liste' | 'detail';
                 {{ formatCents(soldeEnAttente()) }} €
               </span>
             </div>
+            @if (soldeTheorique() !== null) {
+              <div class="solde-sep"></div>
+              <div class="solde-item">
+                <span class="solde-item-lbl">Solde théorique comptable</span>
+                <span class="solde-item-val">{{ formatCents(soldeTheorique()!) }} €</span>
+              </div>
+              <div class="solde-item"
+                [class.solde-item-ok]="ecartReconciliation() === 0"
+                [class.solde-item-warn]="ecartReconciliation() !== 0">
+                <span class="solde-item-lbl">Écart théorique / réel</span>
+                <span class="solde-item-val"
+                  [class.pos]="ecartReconciliation() === 0"
+                  [class.neg]="ecartReconciliation() !== 0">
+                  @if (ecartReconciliation() === 0) {
+                    <mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle">check_circle</mat-icon>
+                    Équilibré
+                  } @else {
+                    {{ formatCents(ecartReconciliation()!) }} €
+                  }
+                </span>
+              </div>
+            }
           </div>
 
-          <!-- Filtres -->
+          <!-- Filtres + action matching auto -->
           <div class="filter-bar">
             <button class="filter-chip" [class.active]="filtre() === 'tous'"
               (click)="filtre.set('tous')">Toutes ({{ activeReleve()!.lignes.length }})</button>
@@ -201,6 +223,16 @@ type View = 'liste' | 'detail';
               (click)="filtre.set('en_attente')">En attente ({{ countPendantes() }})</button>
             <button class="filter-chip filter-chip-green" [class.active]="filtre() === 'rapprochees'"
               (click)="filtre.set('rapprochees')">Rapprochées ({{ countRaprochees(activeReleve()!) }})</button>
+            <div class="filter-spacer"></div>
+            @if (countPendantes() > 0) {
+              <button class="btn-auto-match" (click)="autoMatch()" [disabled]="autoMatching()">
+                @if (autoMatching()) {
+                  <mat-spinner diameter="14"></mat-spinner> Matching…
+                } @else {
+                  <mat-icon>auto_fix_high</mat-icon> Rapprocher auto ({{ countPendantes() }})
+                }
+              </button>
+            }
           </div>
 
           <!-- Tableau de rapprochement -->
@@ -251,6 +283,17 @@ type View = 'liste' | 'detail';
                     <td class="cell-actions">
                       @if (!ligne.rapprochee) {
                         <div class="action-row">
+                          <button mat-icon-button class="btn-suggest"
+                            (click)="showCandidates(ligne)"
+                            [disabled]="loadingCandidatesFor() === ligne.id"
+                            [class.active]="candidatesByLigne()[ligne.id]"
+                            matTooltip="Suggestions de rapprochement">
+                            @if (loadingCandidatesFor() === ligne.id) {
+                              <mat-spinner diameter="16"></mat-spinner>
+                            } @else {
+                              <mat-icon>manage_search</mat-icon>
+                            }
+                          </button>
                           <input class="jl-input" type="number" placeholder="ID ligne journal"
                             [(ngModel)]="journalLineInputs[ligne.id]"
                             (keydown.enter)="rapprocher(ligne)"
@@ -258,7 +301,7 @@ type View = 'liste' | 'detail';
                           <button mat-icon-button class="btn-rapprocher"
                             (click)="rapprocher(ligne)"
                             [disabled]="!journalLineInputs[ligne.id]"
-                            matTooltip="Rapprocher">
+                            matTooltip="Rapprocher manuellement">
                             <mat-icon>link</mat-icon>
                           </button>
                         </div>
@@ -271,6 +314,40 @@ type View = 'liste' | 'detail';
                       }
                     </td>
                   </tr>
+                  @if (candidatesByLigne()[ligne.id]) {
+                    <tr class="candidates-row">
+                      <td colspan="7" class="candidates-cell">
+                        @if (candidatesByLigne()[ligne.id].length === 0) {
+                          <span class="no-candidates">Aucune suggestion trouvée pour cette ligne.</span>
+                        } @else {
+                          <div class="candidates-list">
+                            <span class="candidates-title">
+                              <mat-icon>auto_fix_high</mat-icon>
+                              {{ candidatesByLigne()[ligne.id].length }} suggestion(s)
+                            </span>
+                            @for (c of candidatesByLigne()[ligne.id]; track c.journalLineId) {
+                              <div class="candidate-item">
+                                <div class="candidate-score" [class.score-high]="c.score >= 75" [class.score-med]="c.score >= 40 && c.score < 75">
+                                  {{ c.score }}
+                                </div>
+                                <div class="candidate-info">
+                                  <span class="candidate-account">{{ c.account.code }} — {{ c.account.name }}</span>
+                                  <span class="candidate-entry">{{ c.entry.label }} · {{ formatDate(c.entry.date) }}</span>
+                                  <span class="candidate-amounts">
+                                    D : {{ formatCents(c.debit) }} € · C : {{ formatCents(c.credit) }} €
+                                  </span>
+                                  <span class="candidate-reasons">{{ c.reasons.join(' · ') }}</span>
+                                </div>
+                                <button class="btn-apply-candidate" (click)="applyCandidate(ligne, c)">
+                                  <mat-icon>link</mat-icon> Rapprocher
+                                </button>
+                              </div>
+                            }
+                          </div>
+                        }
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -448,6 +525,8 @@ type View = 'liste' | 'detail';
       border-radius: 8px; font-size: 12px; outline: none;
       &:focus { border-color: #1565c0; }
     }
+    .solde-item-ok   { border-left: 3px solid #2e7d32; border-radius: 4px; padding-left: 8px; }
+    .solde-item-warn { border-left: 3px solid #f57f17; border-radius: 4px; padding-left: 8px; }
     .btn-rapprocher { color: #1565c0 !important; &:hover { color: #0d47a1 !important; } }
     .btn-derapprocher { color: #90a4ae !important; &:hover { color: #e53935 !important; } }
 
@@ -455,6 +534,61 @@ type View = 'liste' | 'detail';
     .cell-actions { white-space: nowrap; }
 
     .detail-wrap { display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── Auto-match & Suggestions ── */
+    .filter-spacer { flex: 1; }
+    .btn-auto-match {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 16px; border-radius: 20px; border: none; cursor: pointer;
+      background: #1565c0; color: white; font-size: 13px; font-weight: 600;
+      transition: background .15s;
+      mat-icon { font-size: 16px; width: 16px; height: 16px; }
+      &:hover:not(:disabled) { background: #0d47a1; }
+      &:disabled { opacity: .6; cursor: default; }
+    }
+    .btn-suggest {
+      color: #78909c !important;
+      &.active { color: #1565c0 !important; }
+      &:hover:not(:disabled) { color: #1565c0 !important; }
+    }
+    .candidates-row { background: #f0f6ff; }
+    .candidates-cell { padding: 0 !important; }
+    .candidates-list {
+      padding: 12px 20px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .candidates-title {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: #1565c0; text-transform: uppercase;
+      mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    }
+    .candidate-item {
+      display: flex; align-items: center; gap: 12px;
+      background: white; border-radius: 8px; padding: 10px 14px;
+      border: 1px solid #e3f2fd; box-shadow: 0 1px 3px rgba(21,101,192,.06);
+    }
+    .candidate-score {
+      min-width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; background: #e0e0e0; color: #546e7a;
+      &.score-high { background: #e8f5e9; color: #2e7d32; }
+      &.score-med  { background: #fff8e1; color: #f57f17; }
+    }
+    .candidate-info {
+      flex: 1; display: flex; flex-direction: column; gap: 2px;
+    }
+    .candidate-account { font-size: 13px; font-weight: 600; color: #0d1b2a; }
+    .candidate-entry   { font-size: 12px; color: #546e7a; }
+    .candidate-amounts { font-size: 11px; color: #90a4ae; }
+    .candidate-reasons { font-size: 11px; color: #1565c0; font-style: italic; }
+    .btn-apply-candidate {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 12px; border-radius: 6px; border: 1px solid #1565c0;
+      background: white; color: #1565c0; font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+      mat-icon { font-size: 14px; width: 14px; height: 14px; }
+      &:hover { background: #e3f2fd; }
+    }
+    .no-candidates { display: block; padding: 12px 20px; font-size: 13px; color: #90a4ae; font-style: italic; }
   `],
 })
 export class RapprochementComponent implements OnInit {
@@ -470,6 +604,10 @@ export class RapprochementComponent implements OnInit {
 
   // Map: ligneId → journalLineId saisi dans le champ
   journalLineInputs: Record<number, number | null> = {};
+
+  autoMatching         = signal(false);
+  candidatesByLigne    = signal<Record<number, MatchCandidate[]>>({});
+  loadingCandidatesFor = signal<number | null>(null);
 
   // ── Computed ────────────────────────────────────────────────────────────────
 
@@ -513,6 +651,28 @@ export class RapprochementComponent implements OnInit {
     const r = this.activeReleve();
     if (!r) return 0;
     return r.lignes.filter(l => !l.rapprochee).reduce((s, l) => s + l.montant, 0);
+  });
+
+  /**
+   * Solde théorique = solde d'ouverture relevé + montant cumulé des lignes rapprochées.
+   * Représente ce que la comptabilité confirme comme solde bancaire à date.
+   * Doit être égal au soldeFin quand le rapprochement est complet.
+   */
+  soldeTheorique = computed(() => {
+    const r = this.activeReleve();
+    return r?.soldeDebut == null ? null : r.soldeDebut + this.soldeRaproche();
+  });
+
+  /**
+   * Écart = soldeFin (relevé réel) − solde théorique (comptabilité confirmée).
+   * 0 → rapprochement complet et correct.
+   * ≠ 0 → lignes en attente ou écarts inexpliqués.
+   */
+  ecartReconciliation = computed(() => {
+    const theo = this.soldeTheorique();
+    return this.activeReleve()?.soldeFin != null && theo !== null
+      ? this.activeReleve()!.soldeFin! - theo
+      : null;
   });
 
   countPendantes = computed(() => this.activeReleve()?.lignes.filter(l => !l.rapprochee).length ?? 0);
@@ -606,6 +766,54 @@ export class RapprochementComponent implements OnInit {
         this.alert.success('Rapprochement annulé.');
       },
       error: () => this.alert.error('Erreur lors de l\'annulation.'),
+    });
+  }
+
+  autoMatch(): void {
+    const r = this.activeReleve();
+    if (!r) return;
+    this.autoMatching.set(true);
+    this.svc.autoMatch(r.id).subscribe({
+      next: result => {
+        this.autoMatching.set(false);
+        this.alert.success(`Matching auto : ${result.matched} rapprochée(s), ${result.skipped} ignorée(s).`);
+        this.svc.getReleve(r.id).subscribe({ next: full => this.activeReleve.set(full) });
+      },
+      error: () => { this.autoMatching.set(false); this.alert.error('Erreur lors du matching automatique.'); },
+    });
+  }
+
+  showCandidates(ligne: LigneReleve): void {
+    if (this.candidatesByLigne()[ligne.id]) {
+      this.dismissCandidates(ligne.id);
+      return;
+    }
+    this.loadingCandidatesFor.set(ligne.id);
+    this.svc.getMatchCandidates(ligne.id).subscribe({
+      next: list => {
+        this.candidatesByLigne.update(m => ({ ...m, [ligne.id]: list }));
+        this.loadingCandidatesFor.set(null);
+      },
+      error: () => { this.loadingCandidatesFor.set(null); this.alert.error('Impossible de charger les suggestions.'); },
+    });
+  }
+
+  dismissCandidates(ligneId: number): void {
+    this.candidatesByLigne.update(m => {
+      const copy = { ...m };
+      delete copy[ligneId];
+      return copy;
+    });
+  }
+
+  applyCandidate(ligne: LigneReleve, candidate: MatchCandidate): void {
+    this.svc.rapprocher(ligne.id, candidate.journalLineId).subscribe({
+      next: updated => {
+        this.updateLigne(updated);
+        this.dismissCandidates(ligne.id);
+        this.alert.success('Ligne rapprochée via suggestion.');
+      },
+      error: () => this.alert.error('Erreur lors du rapprochement.'),
     });
   }
 

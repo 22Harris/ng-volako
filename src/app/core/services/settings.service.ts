@@ -22,7 +22,16 @@ export const CURRENCY_OPTIONS: CurrencyOption[] = [
   { code: 'ZAR', symbol: 'R',    name: 'Rand sud-africain',  flag: '🇿🇦', example: '1.500 R'      },
 ];
 
-const STORAGE_KEY = 'app_currency';
+const STORAGE_KEY          = 'app_currency';
+const STORAGE_COMPANY_NAME = 'app_company_name';
+const STORAGE_COMPANY_SIRET = 'app_company_siret';
+const STORAGE_COMPANY_ADRESSE = 'app_company_adresse';
+
+export interface CompanyInfo {
+  name:    string;
+  siret:   string;
+  adresse: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -36,8 +45,18 @@ export class SettingsService {
 
   readonly currencySymbol = computed(() => this.currency().symbol);
 
+  readonly companyName    = signal<string>(localStorage.getItem(STORAGE_COMPANY_NAME)    ?? 'Mon Entreprise');
+  readonly companySiret   = signal<string>(localStorage.getItem(STORAGE_COMPANY_SIRET)   ?? '');
+  readonly companyAdresse = signal<string>(localStorage.getItem(STORAGE_COMPANY_ADRESSE) ?? '');
+
   setCurrency(code: string): void {
     localStorage.setItem(STORAGE_KEY, code);
     this.currencyCode.set(code);
+  }
+
+  setCompanyInfo(info: Partial<CompanyInfo>): void {
+    if (info.name    !== undefined) { localStorage.setItem(STORAGE_COMPANY_NAME,    info.name);    this.companyName.set(info.name); }
+    if (info.siret   !== undefined) { localStorage.setItem(STORAGE_COMPANY_SIRET,   info.siret);   this.companySiret.set(info.siret); }
+    if (info.adresse !== undefined) { localStorage.setItem(STORAGE_COMPANY_ADRESSE, info.adresse); this.companyAdresse.set(info.adresse); }
   }
 }

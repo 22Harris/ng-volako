@@ -11,11 +11,16 @@ import { AlertService } from './alert.service';
   template: `
     <div class="alert-container">
       @for (alert of alertService.alerts(); track alert.id) {
-        <div class="alert alert-{{ alert.type }}">
-          <mat-icon>{{ alert.type === 'success' ? 'check_circle' : alert.type === 'error' ? 'error' : 'info' }}</mat-icon>
+        <div class="alert alert-{{ alert.type }}"
+          [attr.role]="alert.type === 'error' ? 'alert' : 'status'"
+          [attr.aria-live]="alert.type === 'error' ? 'assertive' : 'polite'"
+          aria-atomic="true">
+          <mat-icon aria-hidden="true">{{ alert.type === 'success' ? 'check_circle' : alert.type === 'error' ? 'error' : 'info' }}</mat-icon>
           <span>{{ alert.text }}</span>
-          <button mat-icon-button (click)="alertService.dismiss(alert.id)">
-            <mat-icon>close</mat-icon>
+          <button mat-icon-button
+            [attr.aria-label]="'Fermer la notification : ' + alert.text"
+            (click)="alertService.dismiss(alert.id)">
+            <mat-icon aria-hidden="true">close</mat-icon>
           </button>
         </div>
       }

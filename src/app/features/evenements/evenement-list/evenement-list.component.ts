@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { EvenementService } from '../../../core/services/evenement.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ExportService } from '../../../core/services/export.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
@@ -40,10 +41,12 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
               <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
             </div>
           }
-          <button class="btn-new" (click)="openForm()">
-            <mat-icon>add</mat-icon>
-            Nouvel événement
-          </button>
+          @if (canManage()) {
+            <button class="btn-new" (click)="openForm()">
+              <mat-icon>add</mat-icon>
+              Nouvel événement
+            </button>
+          }
         </div>
       </div>
 
@@ -161,14 +164,16 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
                   [matTooltip]="ev.statut === 'PAYE' ? 'Marquer en attente' : 'Marquer comme payé'">
                   <mat-icon>{{ ev.statut === 'PAYE' ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
                 </button>
-                <div class="act-right">
-                  <button class="act-btn edit" (click)="openForm(ev)" matTooltip="Modifier">
-                    <mat-icon>edit</mat-icon>
-                  </button>
-                  <button class="act-btn del" (click)="confirmDelete(ev)" matTooltip="Supprimer">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
+                @if (canManage()) {
+                  <div class="act-right">
+                    <button class="act-btn edit" (click)="openForm(ev)" matTooltip="Modifier">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button class="act-btn del" (click)="confirmDelete(ev)" matTooltip="Supprimer">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                }
               </div>
             </div>
           }
@@ -178,7 +183,7 @@ import { Evenement, EvenementCategorie, EvenementStatut } from '../../../core/mo
           <div class="empty-icon"><mat-icon>event_busy</mat-icon></div>
           <h3>Aucun événement</h3>
           <p>{{ activeCategorie() || activeStatut() ? 'Aucun résultat pour ces filtres.' : 'Commencez par créer un événement récurrent.' }}</p>
-          @if (!activeCategorie() && !activeStatut()) {
+          @if (!activeCategorie() && !activeStatut() && canManage()) {
             <button class="btn-new" (click)="openForm()">
               <mat-icon>add</mat-icon> Créer un événement
             </button>
@@ -375,6 +380,9 @@ export class EvenementListComponent implements OnInit {
   private readonly exportSvc  = inject(ExportService);
   private readonly alert      = inject(AlertService);
   private readonly dialog     = inject(MatDialog);
+  private readonly auth       = inject(AuthService);
+
+  readonly canManage = computed(() => this.auth.currentUser()?.role !== 'AUDITEUR');
 
   evenements = signal<Evenement[]>([]);
   activeCategorie = signal<EvenementCategorie | null>(null);

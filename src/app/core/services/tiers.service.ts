@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Tiers, TiersSolde, CreateTiersDto, UpdateTiersDto } from '../models/tiers.model';
+import { PaginatedResponse } from '../models/paginated.model';
 
 @Injectable({ providedIn: 'root' })
 export class TiersService {
@@ -10,8 +11,11 @@ export class TiersService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll(): Observable<Tiers[]> {
-    return this.http.get<Tiers[]>(this.api);
+  getAll(page?: number, pageSize?: number): Observable<PaginatedResponse<Tiers>> {
+    let params = new HttpParams();
+    if (page !== undefined)     params = params.set('page', page);
+    if (pageSize !== undefined) params = params.set('pageSize', pageSize);
+    return this.http.get<PaginatedResponse<Tiers>>(this.api, { params });
   }
 
   getById(id: number): Observable<Tiers> {

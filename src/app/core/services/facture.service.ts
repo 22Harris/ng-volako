@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Facture, CreateFactureDto, UpdateFactureDto, AddPaiementDto } from '../models/facture.model';
+import { PaginatedResponse } from '../models/paginated.model';
 
 @Injectable({ providedIn: 'root' })
 export class FactureService {
@@ -10,10 +11,12 @@ export class FactureService {
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll(tiersId?: number): Observable<Facture[]> {
-    const params: Record<string, string> = {};
-    if (tiersId !== undefined) params['tiersId'] = String(tiersId);
-    return this.http.get<Facture[]>(this.api, { params });
+  getAll(tiersId?: number, page?: number, pageSize?: number): Observable<PaginatedResponse<Facture>> {
+    let params = new HttpParams();
+    if (tiersId !== undefined)  params = params.set('tiersId', tiersId);
+    if (page !== undefined)     params = params.set('page', page);
+    if (pageSize !== undefined) params = params.set('pageSize', pageSize);
+    return this.http.get<PaginatedResponse<Facture>>(this.api, { params });
   }
 
   getById(id: number): Observable<Facture> {

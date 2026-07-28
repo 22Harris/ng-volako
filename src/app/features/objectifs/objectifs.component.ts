@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { ObjectifService } from '../../core/services/objectif.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ExportService } from '../../core/services/export.service';
 import { Objectif, ObjectifStatut, ObjectifCategorie, CreateObjectifDto } from '../../core/models/objectif.model';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
@@ -46,10 +47,12 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
               <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
             </div>
           }
-          <button class="btn-primary" (click)="openForm()">
-            <mat-icon>add</mat-icon>
-            Nouvel objectif
-          </button>
+          @if (canManage()) {
+            <button class="btn-primary" (click)="openForm()">
+              <mat-icon>add</mat-icon>
+              Nouvel objectif
+            </button>
+          }
         </div>
       </div>
 
@@ -113,11 +116,14 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
       <!-- ── Grille objectifs ── -->
       @if (filtered().length === 0) {
         <div class="empty-state">
-          <mat-icon>flag</mat-icon>
-          <p>Aucun objectif pour le moment</p>
-          <button class="btn-primary" (click)="openForm()">
-            <mat-icon>add</mat-icon>Créer un objectif
-          </button>
+          <div class="empty-icon"><mat-icon>flag</mat-icon></div>
+          <h3>Aucun objectif</h3>
+          <p>Commencez par créer un objectif à atteindre.</p>
+          @if (canManage()) {
+            <button class="btn-new" (click)="openForm()">
+              <mat-icon>add</mat-icon> Créer un objectif
+            </button>
+          }
         </div>
       } @else {
         <div class="obj-grid">
@@ -182,7 +188,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 
               <!-- Actions -->
               <div class="obj-actions">
-                @if (obj.statut === 'EN_COURS') {
+                @if (obj.statut === 'EN_COURS' && canManage()) {
                   <button class="obj-btn btn-versement" (click)="openVersement(obj)"
                           matTooltip="Ajouter un versement">
                     <mat-icon>add</mat-icon>
@@ -195,14 +201,16 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
                     Objectif atteint !
                   </div>
                 }
-                <div class="obj-icons">
-                  <button class="icon-btn" (click)="togglePause(obj)" matTooltip="{{ obj.statut === 'EN_PAUSE' ? 'Reprendre' : 'Mettre en pause' }}">
-                    <mat-icon>{{ obj.statut === 'EN_PAUSE' ? 'play_arrow' : 'pause' }}</mat-icon>
-                  </button>
-                  <button class="icon-btn danger" (click)="deleteObj(obj)" matTooltip="Supprimer">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
+                @if (canManage()) {
+                  <div class="obj-icons">
+                    <button class="icon-btn" (click)="togglePause(obj)" matTooltip="{{ obj.statut === 'EN_PAUSE' ? 'Reprendre' : 'Mettre en pause' }}">
+                      <mat-icon>{{ obj.statut === 'EN_PAUSE' ? 'play_arrow' : 'pause' }}</mat-icon>
+                    </button>
+                    <button class="icon-btn danger" (click)="deleteObj(obj)" matTooltip="Supprimer">
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                }
               </div>
 
             </div>
@@ -453,13 +461,28 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 
     /* ── Empty ── */
     .empty-state {
-      background: white; border-radius: 14px; padding: 56px 24px;
-      text-align: center; color: #90a4ae; box-shadow: 0 2px 8px rgba(13,27,42,.07);
-      mat-icon {
-        font-size: 64px; width: 64px; height: 64px; margin-bottom: 16px;
-        color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
-      }
-      p { font-size: 15px; margin: 0 0 28px; }
+      text-align: center; padding: 60px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      background: white; border-radius: 18px;
+      box-shadow: 0 2px 8px rgba(13,27,42,.07);
+    }
+    .empty-icon {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: #e3f2fd; color: #1565c0;
+      display: flex; align-items: center; justify-content: center;
+      mat-icon { font-size: 36px; width: 36px; height: 36px; }
+    }
+    .empty-state h3 { font-size: 18px; font-weight: 800; color: #0d1b2a; margin: 0; }
+    .empty-state p  { font-size: 14px; color: #90a4ae; margin: 0; }
+    .btn-new {
+      display: flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 22px; border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+      color: white; font-size: 14px; font-weight: 700;
+      box-shadow: 0 4px 14px rgba(21,101,192,.4);
+      transition: box-shadow .2s, transform .15s;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+      &:hover { box-shadow: 0 8px 24px rgba(21,101,192,.55); transform: translateY(-1px); }
     }
 
     /* ── Versement overlay ── */
@@ -529,6 +552,11 @@ export class ObjectifsComponent implements OnInit {
   private readonly exportSvc       = inject(ExportService);
   private readonly alert           = inject(AlertService);
   private readonly dialog          = inject(MatDialog);
+  private readonly auth            = inject(AuthService);
+
+  readonly canManage = computed(() =>
+    ['ADMIN', 'DAF', 'CHEF_COMPTABLE'].includes(this.auth.currentUser()?.role ?? '')
+  );
 
   objectifs   = signal<Objectif[]>([]);
   filterStatut = signal<FilterStatut>('TOUT');

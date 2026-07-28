@@ -1,4 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.volako.app',
+  // Chemin relatif : Nginx proxifie /api/ → NestJS:3000 dans le conteneur Docker
+  apiUrl: '/api',
 };

@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BudgetService } from '../../core/services/budget.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ExportService } from '../../core/services/export.service';
 import { AccountService } from '../../core/services/account.service';
 import { JournalEntryService } from '../../core/services/journal-entry.service';
@@ -46,10 +47,12 @@ interface EnrichedLigne extends BudgetLigne {
               <button class="btn-export pdf" (click)="exportPdf()" matTooltip="Exporter PDF"><mat-icon>picture_as_pdf</mat-icon></button>
             </div>
           }
-          <button class="btn-primary" (click)="addLigne()">
-            <mat-icon>add</mat-icon>
-            Ajouter une ligne
-          </button>
+          @if (canManage()) {
+            <button class="btn-primary" (click)="addLigne()">
+              <mat-icon>add</mat-icon>
+              Ajouter une ligne
+            </button>
+          }
         </div>
       </div>
 
@@ -123,11 +126,14 @@ interface EnrichedLigne extends BudgetLigne {
 
       @if (budgetLines().length === 0) {
         <div class="empty-state">
-          <mat-icon>bar_chart</mat-icon>
-          <p>Aucun budget défini pour {{ monthLabel() }}</p>
-          <button class="btn-primary" (click)="addLigne()">
-            <mat-icon>add</mat-icon>Créer un budget
-          </button>
+          <div class="empty-icon"><mat-icon>bar_chart</mat-icon></div>
+          <h3>Aucun budget défini</h3>
+          <p>Commencez par créer un budget pour {{ monthLabel() }}.</p>
+          @if (canManage()) {
+            <button class="btn-new" (click)="addLigne()">
+              <mat-icon>add</mat-icon> Créer un budget
+            </button>
+          }
         </div>
       } @else {
 
@@ -174,12 +180,14 @@ interface EnrichedLigne extends BudgetLigne {
                       </div>
                     </td>
                     <td class="actions-col">
+                      @if (canManage()) {
                       <button class="icon-btn" (click)="startEdit(line)" matTooltip="Modifier">
                         <mat-icon>edit</mat-icon>
                       </button>
                       <button class="icon-btn danger" (click)="deleteLigne(line.id)" matTooltip="Supprimer">
                         <mat-icon>delete</mat-icon>
                       </button>
+                      }
                     </td>
                   </tr>
                 } @else {
@@ -259,12 +267,14 @@ interface EnrichedLigne extends BudgetLigne {
                       </div>
                     </td>
                     <td class="actions-col">
+                      @if (canManage()) {
                       <button class="icon-btn" (click)="startEdit(line)" matTooltip="Modifier">
                         <mat-icon>edit</mat-icon>
                       </button>
                       <button class="icon-btn danger" (click)="deleteLigne(line.id)" matTooltip="Supprimer">
                         <mat-icon>delete</mat-icon>
                       </button>
+                      }
                     </td>
                   </tr>
                 } @else {
@@ -535,14 +545,28 @@ interface EnrichedLigne extends BudgetLigne {
 
     /* ── Empty state ── */
     .empty-state {
-      background: white; border-radius: 14px; padding: 56px 24px;
-      text-align: center; color: #90a4ae;
+      text-align: center; padding: 60px 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      background: white; border-radius: 18px;
       box-shadow: 0 2px 8px rgba(13,27,42,.07);
-      mat-icon {
-        font-size: 64px; width: 64px; height: 64px; margin-bottom: 16px;
-        color: #bbdefb; display: block; margin-left: auto; margin-right: auto;
-      }
-      p { font-size: 15px; margin: 0 0 28px; }
+    }
+    .empty-icon {
+      width: 72px; height: 72px; border-radius: 20px;
+      background: #e3f2fd; color: #1565c0;
+      display: flex; align-items: center; justify-content: center;
+      mat-icon { font-size: 36px; width: 36px; height: 36px; }
+    }
+    .empty-state h3 { font-size: 18px; font-weight: 800; color: #0d1b2a; margin: 0; }
+    .empty-state p  { font-size: 14px; color: #90a4ae; margin: 0; }
+    .btn-new {
+      display: flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 22px; border: none; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+      color: white; font-size: 14px; font-weight: 700;
+      box-shadow: 0 4px 14px rgba(21,101,192,.4);
+      transition: box-shadow .2s, transform .15s;
+      mat-icon { font-size: 20px; width: 20px; height: 20px; }
+      &:hover { box-shadow: 0 8px 24px rgba(21,101,192,.55); transform: translateY(-1px); }
     }
 
     /* ── Overlay / modal ── */
@@ -613,6 +637,11 @@ export class BudgetComponent implements OnInit {
   private readonly journalService = inject(JournalEntryService);
   private readonly exportSvc      = inject(ExportService);
   private readonly alert          = inject(AlertService);
+  private readonly auth           = inject(AuthService);
+
+  readonly canManage = computed(() =>
+    ['ADMIN', 'DAF', 'CHEF_COMPTABLE', 'COMPTABLE'].includes(this.auth.currentUser()?.role ?? '')
+  );
 
   budgets  = signal<Budget[]>([]);
   accounts = signal<Account[]>([]);
@@ -637,7 +666,7 @@ export class BudgetComponent implements OnInit {
   ngOnInit(): void {
     this.budgetService.getAll().subscribe(list => this.budgets.set(list));
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
-    this.journalService.getAll().subscribe(list => this.entries.set(list));
+    this.journalService.getAll().subscribe(res => this.entries.set(res.data));
   }
 
   monthLabel = computed(() => `${MONTHS_FR[this.selectedMois()]} ${this.selectedExercice()}`);

@@ -7,12 +7,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { CentsPipe } from '../../shared/pipes/cents.pipe';
 import { AccountService } from '../../core/services/account.service';
 import {
   RapportsService, BalanceLine, GrandLivreResponse, BilanReport, CompteResultatReport,
 } from '../../core/services/rapports.service';
 import { ExportService } from '../../core/services/export.service';
+import { SettingsService } from '../../core/services/settings.service';
 import { Account } from '../../core/models/account.model';
 
 type ReportTab = 'balance' | 'grand-livre' | 'bilan' | 'resultat';
@@ -41,25 +43,38 @@ const CLASS_NAMES: Record<number, string> = {
   imports: [
     CommonModule, FormsModule,
     MatIconModule, MatButtonModule, MatTooltipModule,
-    MatSelectModule, MatFormFieldModule, MatInputModule,
+    MatSelectModule, MatFormFieldModule, MatInputModule, MatPaginatorModule,
     CentsPipe,
   ],
   template: `
     <div class="page">
 
-      <!-- Print-only header -->
+      <!-- Print-only header (en-tête A4 légal) -->
       <div class="print-header-fixed">
         <div class="phf-left">
-          <span class="phf-brand">Volako</span>
-          <span class="phf-sep">·</span>
-          <span class="phf-title">
-            @if (activeTab() === 'balance')    { Balance générale des comptes }
-            @if (activeTab() === 'grand-livre') { Grand livre par compte }
-            @if (activeTab() === 'bilan')      { Bilan comptable }
-            @if (activeTab() === 'resultat')   { Compte de résultat }
-          </span>
+          <span class="phf-company">{{ settings.companyName() }}</span>
+          @if (settings.companySiret()) {
+            <span class="phf-siret">SIRET {{ settings.companySiret() }}</span>
+          }
+          @if (settings.companyAdresse()) {
+            <span class="phf-adresse">{{ settings.companyAdresse() }}</span>
+          }
         </div>
-        <span class="phf-date">Édité le {{ today }}</span>
+        <div class="phf-right">
+          <span class="phf-title">
+            @if (activeTab() === 'balance')     { Balance générale }
+            @if (activeTab() === 'grand-livre') { Grand livre }
+            @if (activeTab() === 'bilan')       { Bilan — Exercice {{ exercice() }} }
+            @if (activeTab() === 'resultat')    { Compte de résultat — Exercice {{ exercice() }} }
+          </span>
+          <span class="phf-date">Édité le {{ today }}</span>
+        </div>
+      </div>
+
+      <!-- Print-only footer -->
+      <div class="print-footer-fixed">
+        <span class="pff-legal">Document généré par Volako · Confidentiel</span>
+        <span class="pff-page">Page <span class="page-num"></span></span>
       </div>
 
       <!-- Header -->
@@ -69,9 +84,13 @@ const CLASS_NAMES: Record<number, string> = {
           <p class="page-sub">Balance · Grand livre · Bilan · Compte de résultat</p>
         </div>
         <div class="header-actions">
-          <button class="btn-fec" (click)="exportFec()" matTooltip="Fichier des Écritures Comptables (obligation légale)">
+          <button class="btn-fec" (click)="exportFec()" matTooltip="FEC TXT — Fichier des Écritures Comptables (obligation légale DGFiP)">
             <mat-icon>gavel</mat-icon>
-            FEC
+            FEC TXT
+          </button>
+          <button class="btn-fec btn-fec-xl" (click)="exportFecExcel()" matTooltip="FEC Excel — même données que le TXT, format tableur">
+            <mat-icon>table_view</mat-icon>
+            FEC Excel
           </button>
           <button class="btn-print" (click)="print()" matTooltip="Imprimer ce rapport">
             <mat-icon>print</mat-icon>
@@ -358,6 +377,16 @@ const CLASS_NAMES: Record<number, string> = {
                   </tfoot>
                 </table>
               </div>
+              @if (glTotal() > glPageSize()) {
+                <mat-paginator
+                  [length]="glTotal()"
+                  [pageSize]="glPageSize()"
+                  [pageIndex]="glPage() - 1"
+                  [pageSizeOptions]="[25, 50, 100]"
+                  (page)="onGlPageChange($event)"
+                  class="gl-paginator no-print">
+                </mat-paginator>
+              }
             }
           }
         </div>
@@ -380,6 +409,19 @@ const CLASS_NAMES: Record<number, string> = {
                 }
               </mat-select>
             </mat-form-field>
+            @if (bilanData()) {
+              <div class="export-actions">
+                <button class="btn-export" (click)="exportBilanPdf()" matTooltip="Exporter en PDF">
+                  <mat-icon>picture_as_pdf</mat-icon> PDF
+                </button>
+                <button class="btn-export" (click)="exportBilanExcel()" matTooltip="Exporter en Excel">
+                  <mat-icon>table_view</mat-icon> Excel
+                </button>
+                <button class="btn-export" (click)="exportBilanCsv()" matTooltip="Exporter en CSV">
+                  <mat-icon>download</mat-icon> CSV
+                </button>
+              </div>
+            }
           </div>
 
           @if (loadingBilan()) {
@@ -530,6 +572,19 @@ const CLASS_NAMES: Record<number, string> = {
                 }
               </mat-select>
             </mat-form-field>
+            @if (resultatData()) {
+              <div class="export-actions">
+                <button class="btn-export" (click)="exportResultatPdf()" matTooltip="Exporter en PDF">
+                  <mat-icon>picture_as_pdf</mat-icon> PDF
+                </button>
+                <button class="btn-export" (click)="exportResultatExcel()" matTooltip="Exporter en Excel">
+                  <mat-icon>table_view</mat-icon> Excel
+                </button>
+                <button class="btn-export" (click)="exportResultatCsv()" matTooltip="Exporter en CSV">
+                  <mat-icon>download</mat-icon> CSV
+                </button>
+              </div>
+            }
           </div>
 
           @if (loadingResultat()) {
@@ -725,6 +780,10 @@ const CLASS_NAMES: Record<number, string> = {
       mat-icon { font-size: 17px; width: 17px; height: 17px; }
       &:hover { background: #e1bee7; }
     }
+    .btn-fec-xl {
+      border-color: #1565c0; background: #e3f2fd; color: #1565c0;
+      &:hover { background: #bbdefb; }
+    }
 
     /* Loading & empty */
     .loading, .empty-state {
@@ -907,25 +966,53 @@ const CLASS_NAMES: Record<number, string> = {
       .gl-date, .gl-select { width: 100%; }
     }
 
-    /* Print header */
-    .print-header-fixed { display: none; }
+    /* Print-only elements — hidden on screen */
+    .print-header-fixed, .print-footer-fixed { display: none; }
+
+    @page {
+      size: A4 portrait;
+      margin: 28mm 15mm 22mm;
+    }
 
     @media print {
+      /* ── En-tête fixe ── */
       .print-header-fixed {
         display: flex !important;
-        justify-content: space-between; align-items: baseline;
+        justify-content: space-between; align-items: flex-start;
         position: fixed; top: 0; left: 0; right: 0;
-        padding: 4mm 12mm 3mm;
+        padding: 4mm 15mm 3mm;
         border-bottom: 2px solid #0d1b2a;
         background: white; z-index: 9999;
       }
-      .phf-brand { font-size: 13pt; font-weight: 900; color: #0d1b2a; }
-      .phf-sep   { margin: 0 8px; color: #b0bec5; }
-      .phf-title { font-size: 10pt; font-weight: 700; color: #1565c0; }
-      .phf-date  { font-size: 8pt; color: #78909c; }
+      .phf-left  { display: flex; flex-direction: column; gap: 1mm; }
+      .phf-right { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
+      .phf-company { font-size: 12pt; font-weight: 900; color: #0d1b2a; }
+      .phf-siret   { font-size: 8pt;  font-weight: 600; color: #546e7a; }
+      .phf-adresse { font-size: 8pt;  color: #78909c; }
+      .phf-title   { font-size: 10pt; font-weight: 700; color: #1565c0; text-align: right; }
+      .phf-date    { font-size: 8pt;  color: #78909c; }
 
-      .page { padding-top: 0 !important; gap: 0; }
-      .tab-bar, .btn-print, .page-header, .gl-filters { display: none !important; }
+      /* ── Pied de page fixe avec compteur CSS ── */
+      .print-footer-fixed {
+        display: flex !important;
+        justify-content: space-between; align-items: center;
+        position: fixed; bottom: 0; left: 0; right: 0;
+        padding: 2mm 15mm;
+        border-top: 1px solid #dde3ea;
+        background: white; z-index: 9999;
+        font-size: 7.5pt; color: #90a4ae;
+      }
+      .pff-page::after {
+        counter-increment: page;
+        content: counter(page);
+        font-weight: 700;
+        color: #546e7a;
+      }
+
+      /* ── Corps ── */
+      .page { padding-top: 0 !important; padding-bottom: 14mm !important; gap: 0; }
+      .tab-bar, .btn-print, .btn-fec, .page-header, .gl-filters,
+      .export-actions, mat-paginator { display: none !important; }
       .report-card { box-shadow: none !important; border: none !important; padding: 0 !important; gap: 12px !important; }
       .report-header mat-icon { display: none !important; }
       .table-wrap { overflow: visible !important; }
@@ -956,6 +1043,7 @@ export class RapportsComponent implements OnInit {
   private readonly rapportsService = inject(RapportsService);
   private readonly accountService  = inject(AccountService);
   private readonly exportSvc       = inject(ExportService);
+  readonly settings                = inject(SettingsService);
 
   readonly today = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -973,6 +1061,11 @@ export class RapportsComponent implements OnInit {
   bilanData    = signal<BilanReport | null>(null);
   resultatData = signal<CompteResultatReport | null>(null);
   exercice     = signal(new Date().getFullYear());
+
+  // Pagination — Grand Livre (server-side)
+  glPage      = signal(1);
+  glPageSize  = signal(50);
+  glTotal     = signal(0);
 
   // Grand livre filters
   selectedAccountId: number | null = null;
@@ -1018,14 +1111,26 @@ export class RapportsComponent implements OnInit {
   exportGlExcel(): void { if (this.grandLivre()) this.exportSvc.excelGrandLivre(this.grandLivre()!); }
   exportGlCsv():   void { if (this.grandLivre()) this.exportSvc.csvGrandLivre(this.grandLivre()!); }
 
+  /* ── Exports Bilan ── */
+  exportBilanPdf():   void { if (this.bilanData()) this.exportSvc.pdfBilan(this.bilanData()!); }
+  exportBilanExcel(): void { if (this.bilanData()) this.exportSvc.excelBilan(this.bilanData()!); }
+  exportBilanCsv():   void { if (this.bilanData()) this.exportSvc.csvBilan(this.bilanData()!); }
+
+  /* ── Exports Compte de Résultat ── */
+  exportResultatPdf():   void { if (this.resultatData()) this.exportSvc.pdfResultat(this.resultatData()!); }
+  exportResultatExcel(): void { if (this.resultatData()) this.exportSvc.excelResultat(this.resultatData()!); }
+  exportResultatCsv():   void { if (this.resultatData()) this.exportSvc.csvResultat(this.resultatData()!); }
+
   /* ── Export FEC ── */
-  exportFec(): void { this.exportSvc.downloadFec(); }
+  exportFec(): void      { this.exportSvc.downloadFec(); }
+  exportFecExcel(): void { this.exportSvc.downloadFecExcel(); }
 
   private fetchBalance(): void {
     this.loadingBalance.set(true);
-    this.rapportsService.getBalance().subscribe({
-      next: (lines) => { this.balanceLines.set(lines); this.loadingBalance.set(false); },
-      error: ()      => { this.loadingBalance.set(false); },
+    // Charge tout le PCG d'un coup (pageSize 500) pour garder le groupement par classe
+    this.rapportsService.getBalance(1, 500).subscribe({
+      next: (res) => { this.balanceLines.set(res.data); this.loadingBalance.set(false); },
+      error: ()    => { this.loadingBalance.set(false); },
     });
   }
 
@@ -1047,18 +1152,31 @@ export class RapportsComponent implements OnInit {
     });
   }
 
-  loadGrandLivre(): void {
+  loadGrandLivre(resetPage = true): void {
     if (!this.selectedAccountId) return;
+    if (resetPage) this.glPage.set(1);
     this.loadingGl.set(true);
     this.grandLivre.set(null);
     this.rapportsService.getGrandLivre(
       this.selectedAccountId,
       this.glDateFrom || undefined,
       this.glDateTo   || undefined,
+      this.glPage(),
+      this.glPageSize(),
     ).subscribe({
-      next: (data) => { this.grandLivre.set(data); this.loadingGl.set(false); },
-      error: ()     => { this.loadingGl.set(false); },
+      next: (data) => {
+        this.grandLivre.set(data);
+        this.glTotal.set(data.pagination?.total ?? 0);
+        this.loadingGl.set(false);
+      },
+      error: () => { this.loadingGl.set(false); },
     });
+  }
+
+  onGlPageChange(event: PageEvent): void {
+    this.glPage.set(event.pageIndex + 1);
+    this.glPageSize.set(event.pageSize);
+    this.loadGrandLivre(false);
   }
 
   /* ── helpers ── */

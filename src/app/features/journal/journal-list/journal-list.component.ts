@@ -15,6 +15,7 @@ import { Journal, JOURNAL_TYPE_LABELS } from '../../../core/models/journal.model
 import { CentsPipe } from '../../../shared/pipes/cents.pipe';
 import { AccountCodePipe } from '../../../shared/pipes/account-code.pipe';
 import { AppDateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { PaginationComponent } from '../../../shared/components/pagination/pagination.component';
 
 interface FlatLine {
   date: string;
@@ -42,6 +43,7 @@ interface FlatLine {
     CentsPipe,
     AccountCodePipe,
     AppDateInputComponent,
+    PaginationComponent,
   ],
   template: `
     <div class="page">
@@ -170,7 +172,7 @@ interface FlatLine {
         <!-- Tableau -->
         <div class="table-card">
           <div class="table-wrap">
-            <table mat-table [dataSource]="paginatedLines()" class="journal-table">
+            <table mat-table [dataSource]="filteredLines()" class="journal-table">
 
               <ng-container matColumnDef="piece">
                 <th mat-header-cell *matHeaderCellDef>Pièce</th>
@@ -270,35 +272,14 @@ interface FlatLine {
 
           <!-- Pagination -->
           <div class="paginator-wrap">
-            <div class="pag-info">
-              <span class="pag-count">
-                {{ filteredLines().length === 0 ? 0 : pageIndex() * pageSize() + 1 }}–{{ min((pageIndex() + 1) * pageSize(), filteredLines().length) }}
-                <span class="pag-total">sur {{ filteredLines().length }}</span>
-              </span>
-            </div>
-            <div class="pag-size">
-              <span class="pag-size-label">Lignes :</span>
-              <select class="pag-size-select" [value]="pageSize()" (change)="changePageSize($event)">
-                <option [value]="10">10</option>
-                <option [value]="25">25</option>
-                <option [value]="50">50</option>
-              </select>
-            </div>
-            <div class="pag-nav">
-              <button class="pag-btn" (click)="goPage(0)" [disabled]="pageIndex() === 0" matTooltip="Première page">
-                <mat-icon>first_page</mat-icon>
-              </button>
-              <button class="pag-btn" (click)="goPage(pageIndex() - 1)" [disabled]="pageIndex() === 0" matTooltip="Précédent">
-                <mat-icon>chevron_left</mat-icon>
-              </button>
-              <span class="pag-page">{{ pageIndex() + 1 }} / {{ totalPages() }}</span>
-              <button class="pag-btn" (click)="goPage(pageIndex() + 1)" [disabled]="pageIndex() >= totalPages() - 1" matTooltip="Suivant">
-                <mat-icon>chevron_right</mat-icon>
-              </button>
-              <button class="pag-btn" (click)="goPage(totalPages() - 1)" [disabled]="pageIndex() >= totalPages() - 1" matTooltip="Dernière page">
-                <mat-icon>last_page</mat-icon>
-              </button>
-            </div>
+            <app-pagination
+              [page]="serverPage()"
+              [pageSize]="serverPageSize()"
+              [total]="serverTotal()"
+              [totalPages]="serverTotalPages()"
+              (pageChange)="loadEntries($event)"
+              (pageSizeChange)="onServerPageSizeChange($event)"
+            />
           </div>
         </div>
 
@@ -739,8 +720,11 @@ export class JournalListComponent implements OnInit {
   selectedEntryId = signal<number | null>(null);
 
   sortOrder: 'desc' | 'asc' = 'desc';
-  pageSize  = signal(10);
-  pageIndex = signal(0);
+
+  serverPage      = signal(1);
+  serverPageSize  = signal(50);
+  serverTotal     = signal(0);
+  serverTotalPages = signal(0);
 
   displayedColumns = ['piece', 'journal', 'date', 'label', 'statut', 'account', 'debit', 'credit'];
 
@@ -754,11 +738,6 @@ export class JournalListComponent implements OnInit {
   });
 
   filterValues = toSignal(this.filterForm.valueChanges, { initialValue: this.filterForm.value });
-
-  paginatedLines = computed(() => {
-    const start = this.pageIndex() * this.pageSize();
-    return this.filteredLines().slice(start, start + this.pageSize());
-  });
 
   selectedEntry = computed(() =>
     this.entries().find(e => e.id === this.selectedEntryId()) ?? null
@@ -774,20 +753,30 @@ export class JournalListComponent implements OnInit {
   totalDebit  = computed(() => this.filteredLines().reduce((s, r) => s + r.debit,  0));
   totalCredit = computed(() => this.filteredLines().reduce((s, r) => s + r.credit, 0));
   soldeNet    = computed(() => this.totalDebit() - this.totalCredit());
-  totalPages  = computed(() => Math.max(1, Math.ceil(this.filteredLines().length / this.pageSize())));
-
   hasActiveFilters = computed(() => {
     const f = this.filterValues();
     return !!(f.accountId || f.dateFrom || f.dateTo || f.label || f.sens !== 'tous');
   });
 
   ngOnInit(): void {
-    this.journalService.getAll().subscribe(list => {
-      this.entries.set(list);
-      this.applyFilters();
-    });
+    this.loadEntries(1);
     this.accountService.getAll().subscribe(list => this.accounts.set(list));
     this.journalSvc.getAll().subscribe(list => this.journals.set(list));
+  }
+
+  loadEntries(page: number): void {
+    this.serverPage.set(page);
+    this.journalService.getAll(undefined, page, this.serverPageSize()).subscribe(res => {
+      this.serverTotal.set(res.total);
+      this.serverTotalPages.set(res.totalPages);
+      this.entries.set(res.data);
+      this.applyFilters();
+    });
+  }
+
+  onServerPageSizeChange(size: number): void {
+    this.serverPageSize.set(size);
+    this.loadEntries(1);
   }
 
   journalTypeLabel(journalId: number | null): string {
@@ -836,7 +825,6 @@ export class JournalListComponent implements OnInit {
       });
 
     this.filteredLines.set(result);
-    this.pageIndex.set(0);
   }
 
   toggleSort(): void {
@@ -854,17 +842,6 @@ export class JournalListComponent implements OnInit {
       this.selectedEntryId() === row.entryId ? null : row.entryId
     );
   }
-
-  goPage(index: number): void {
-    this.pageIndex.set(index);
-  }
-
-  changePageSize(event: Event): void {
-    this.pageSize.set(+(event.target as HTMLSelectElement).value);
-    this.pageIndex.set(0);
-  }
-
-  min(a: number, b: number): number { return Math.min(a, b); }
 
   statutLabel(s: EntryStatus): string {
     return s === 'BROUILLON' ? 'Brouillon' : s === 'VALIDE' ? 'Validé' : 'Verrouillé';

@@ -8,6 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { AccountService } from '../../../core/services/account.service';
 import { AlertService } from '../../../shared/components/alert/alert.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AccountFormComponent } from '../account-form/account-form.component';
 import { Account } from '../../../core/models/account.model';
@@ -57,16 +58,18 @@ const CLASS_META: Record<number, { name: string; bg: string; fg: string }> = {
               </p>
             </div>
           </div>
-          <div class="header-actions">
-            <button class="btn-edit" (click)="openEdit()">
-              <mat-icon>edit</mat-icon>
-              Modifier
-            </button>
-            <button class="btn-delete" (click)="confirmDelete()">
-              <mat-icon>delete</mat-icon>
-              Supprimer
-            </button>
-          </div>
+          @if (isAdmin()) {
+            <div class="header-actions">
+              <button class="btn-edit" (click)="openEdit()">
+                <mat-icon>edit</mat-icon>
+                Modifier
+              </button>
+              <button class="btn-delete" (click)="confirmDelete()">
+                <mat-icon>delete</mat-icon>
+                Supprimer
+              </button>
+            </div>
+          }
         </div>
 
         <!-- ── KPI du compte ── -->
@@ -361,6 +364,9 @@ export class AccountDetailComponent implements OnInit {
   private readonly dialog         = inject(MatDialog);
   private readonly route          = inject(ActivatedRoute);
   private readonly router         = inject(Router);
+  private readonly auth           = inject(AuthService);
+
+  readonly isAdmin = computed(() => this.auth.currentUser()?.role === 'ADMIN');
 
   account = signal<Account | null>(null);
   displayedColumns = ['index', 'debit', 'credit', 'net'];

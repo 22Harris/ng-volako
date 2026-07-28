@@ -325,7 +325,7 @@ export class FactureFormComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.tiersService.getAll().subscribe({ next: list => this.tiersList = list, error: () => {} });
+    this.tiersService.getAll().subscribe({ next: res => this.tiersList = res.data, error: () => {} });
     if (this.data) {
       this.form.patchValue({
         numero:       this.data.numero,
